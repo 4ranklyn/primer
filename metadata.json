@@ -1,0 +1,6 @@
+{
+  "name": "Kiko Calistung",
+  "description": "Voice-first Socratic companion for early childhood literacy and numeracy (Calistung) comprehension with 15-minute daily guided inquiry, step-down scaffolding, multimodal SNR fallback cards, and parental cognitive telemetry.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
