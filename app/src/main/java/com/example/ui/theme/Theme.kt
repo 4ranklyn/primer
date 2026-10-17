@@ -11,54 +11,56 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 private val LightColorScheme = lightColorScheme(
-    primary = ForestGreenPrimary,
+    primary = CalmSageOlive,
     onPrimary = Color.White,
-    primaryContainer = SageContainer,
-    onPrimaryContainer = OnSageContainer,
-    secondary = TerracottaSecondary,
+    primaryContainer = SageContainerLight,
+    onPrimaryContainer = CalmSageOlive,
+    secondary = SocraticCoral,
     onSecondary = Color.White,
-    secondaryContainer = TerracottaContainer,
-    onSecondaryContainer = OnTerracottaContainer,
-    tertiary = HoneyGoldTertiary,
-    onTertiary = Color.White,
-    tertiaryContainer = HoneyGoldContainer,
-    onTertiaryContainer = OnHoneyGoldContainer,
-    background = StorybookCreamBg,
-    onBackground = DeepEspressoText,
-    surface = StorybookSurface,
-    onSurface = DeepEspressoText,
-    surfaceVariant = ParchmentCard,
-    onSurfaceVariant = MutedWalnutText,
-    outline = WarmBorder,
-    error = SnrDangerCoral
+    secondaryContainer = CardOption1Bg,
+    onSecondaryContainer = SocraticCoral,
+    tertiary = AmberWarmSun,
+    onTertiary = TextEspresso,
+    tertiaryContainer = AmberWarmContainer,
+    onTertiaryContainer = TextEspresso,
+    background = SoftSandCream,
+    onBackground = TextEspresso,
+    surface = CardWarmParchment,
+    onSurface = TextEspresso,
+    surfaceVariant = Color(0xFFEFE6D7),
+    onSurfaceVariant = TextMutedClay,
+    outline = CardBorderSubtle,
+    outlineVariant = Color(0xFFDED1BE),
+    error = SocraticCoral
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = MintPrimaryDark,
-    onPrimary = OnSageContainer,
-    primaryContainer = ForestGreenPrimary,
-    onPrimaryContainer = SageContainer,
-    secondary = WarmApricotDark,
-    onSecondary = OnTerracottaContainer,
-    secondaryContainer = Color(0xFF5C230E),
-    onSecondaryContainer = TerracottaContainer,
-    tertiary = SoftGoldDark,
-    onTertiary = OnHoneyGoldContainer,
-    tertiaryContainer = Color(0xFF573800),
-    onTertiaryContainer = HoneyGoldContainer,
-    background = TwilightBg,
-    onBackground = Color(0xFFF3ECE4),
-    surface = TwilightSurface,
-    onSurface = Color(0xFFF3ECE4),
-    surfaceVariant = TwilightCard,
-    onSurfaceVariant = Color(0xFFC5B9AD),
-    outline = Color(0xFF3F5249),
-    error = Color(0xFFFF8A80)
+    primary = CalmMintGlow,
+    onPrimary = TwilightDeepIndigo,
+    primaryContainer = CalmSageOlive,
+    onPrimaryContainer = Color.White,
+    secondary = SocraticCoral,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFF4A2518),
+    onSecondaryContainer = Color(0xFFFFD5C4),
+    tertiary = MoonGlowYellow,
+    onTertiary = TwilightDeepIndigo,
+    tertiaryContainer = Color(0xFF4D3811),
+    onTertiaryContainer = MoonGlowYellow,
+    background = DarkBgSurface,
+    onBackground = Color(0xFFF3ECE0),
+    surface = DarkSurfaceCard,
+    onSurface = Color(0xFFF3ECE0),
+    surfaceVariant = Color(0xFF26352C),
+    onSurfaceVariant = Color(0xFFADC0B4),
+    outline = DarkBorder,
+    outlineVariant = Color(0xFF384B3F),
+    error = Color(0xFFFF8566)
 )
 
-val StorybookShapes = Shapes(
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(20.dp),
+val CalmScaffoldingShapes = Shapes(
+    small = RoundedCornerShape(14.dp),
+    medium = RoundedCornerShape(22.dp),
     large = RoundedCornerShape(28.dp),
     extraLarge = RoundedCornerShape(36.dp)
 )
@@ -73,7 +75,7 @@ fun MyApplicationTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        shapes = StorybookShapes,
+        shapes = CalmScaffoldingShapes,
         content = content
     )
 }

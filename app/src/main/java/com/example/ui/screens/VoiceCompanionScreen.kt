@@ -5,9 +5,11 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,11 +30,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -68,6 +72,25 @@ import com.example.R
 import com.example.data.ChildProfileEntity
 import com.example.data.SocraticTask
 import com.example.data.VisualCardOption
+import com.example.ui.theme.AmberWarmSun
+import com.example.ui.theme.CalmMintGlow
+import com.example.ui.theme.CalmSageOlive
+import com.example.ui.theme.CardBorderSubtle
+import com.example.ui.theme.CardOption1Bg
+import com.example.ui.theme.CardOption1Border
+import com.example.ui.theme.CardOption2Bg
+import com.example.ui.theme.CardOption2Border
+import com.example.ui.theme.CardWarmParchment
+import com.example.ui.theme.MoonGlowYellow
+import com.example.ui.theme.SageContainerLight
+import com.example.ui.theme.SocraticCoral
+import com.example.ui.theme.StarLavender
+import com.example.ui.theme.StarLavenderMuted
+import com.example.ui.theme.TextEspresso
+import com.example.ui.theme.TextMutedClay
+import com.example.ui.theme.TwilightBorder
+import com.example.ui.theme.TwilightCardSurface
+import com.example.ui.theme.TwilightDeepIndigo
 import com.example.viewmodel.CompanionUiState
 import com.example.viewmodel.DialogueMessage
 
@@ -94,9 +117,9 @@ fun VoiceCompanionScreen(
     val infiniteTransition = rememberInfiniteTransition(label = "kiko_breathing")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
-        targetValue = if (isSpeaking || isListening) 1.08f else 1.03f,
+        targetValue = if (isSpeaking || isListening) 1.09f else 1.03f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isSpeaking || isListening) 650 else 1600),
+            animation = tween(durationMillis = if (isSpeaking || isListening) 650 else 1800),
             repeatMode = RepeatMode.Reverse
         ),
         label = "pulse_scale"
@@ -104,6 +127,7 @@ fun VoiceCompanionScreen(
 
     val remainingSeconds = (900 - uiState.sessionElapsedSeconds).coerceAtLeast(0)
     val remMin = remainingSeconds / 60
+    val remSec = remainingSeconds % 60
 
     Column(
         modifier = modifier
@@ -112,25 +136,26 @@ fun VoiceCompanionScreen(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Child Learner Switcher & Gentle 15-Minute Daily Timer
+        // Top Learner Bar & Daily 15-Minute Calm Budget (Design System Invariant 1)
         ChildSessionHeader(
             profiles = profiles,
             selectedProfileId = uiState.selectedProfileId,
             remainingMinutes = remMin,
+            remainingSeconds = remSec,
             sessionProgress = (uiState.sessionElapsedSeconds / 900f).coerceIn(0f, 1f),
             isLocked = uiState.isSessionLockedWindDown,
             onSelectProfile = onSelectProfile,
             onTriggerWindDownRitual = onTriggerWindDownRitual
         )
 
-        // Calm Closing Ritual Screen when the 15-minute daily session finishes
+        // Screen 3: Waktu Istirahat Closing Ritual (Deep Twilight Indigo, Calm Bedtime Theme)
         if (uiState.isSessionLockedWindDown) {
-            CalmClosingRitualCard(
+            WaktuIstirahatClosingRitualCard(
                 onParentResetSession = onParentResetSession
             )
         } else {
-            // Main Kiko Storybook Companion Stage
-            KikoCharacterStageCard(
+            // Screen 1: Suara Harian Socratic (Warm Organic Sage & Terracotta Coral)
+            SuaraHarianSocraticStageCard(
                 currentTask = currentTask,
                 stepDownLevel = uiState.currentStepDownLevel,
                 companionMoodText = uiState.companionMoodText,
@@ -144,23 +169,23 @@ fun VoiceCompanionScreen(
                 onNextStoryTask = onNextStoryTask
             )
 
-            // Large Non-Text Picture Tap Cards when the room is noisy ("Hard to Hear" mode)
+            // Screen 2: Kartu Pilihan Fallback (Tactile, High-Contrast Tiles when ambient SNR is low)
             if (uiState.isVisualFallbackActive) {
-                MultimodalVisualFallbackSection(
+                KartuPilihanFallbackSection(
                     task = currentTask,
                     onSelectCard = onSelectVisualFallbackCard
                 )
             }
 
-            // Friendly Voice Reply Bubbles (Child can tap to say an answer aloud or test without a mic)
-            QuickChildVoiceBubblesCard(
+            // Quick Voice Reply Chips (Accessible testing & child co-play)
+            QuickChildVoiceRepliesCard(
                 currentTask = currentTask,
                 onChildUtterance = onChildVoiceUtterance
             )
         }
 
-        // Story Conversation History
-        StoryConversationCard(
+        // Live Socratic Dialogue Stream
+        SocraticConversationLogCard(
             dialogueHistory = uiState.dialogueHistory
         )
     }
@@ -172,15 +197,16 @@ private fun ChildSessionHeader(
     profiles: List<ChildProfileEntity>,
     selectedProfileId: Int,
     remainingMinutes: Int,
+    remainingSeconds: Int,
     sessionProgress: Float,
     isLocked: Boolean,
     onSelectProfile: (Int) -> Unit,
     onTriggerWindDownRitual: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = CardWarmParchment),
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(1.5.dp, CardBorderSubtle),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -207,12 +233,14 @@ private fun ChildSessionHeader(
                                 )
                             },
                             colors = AssistChipDefaults.assistChipColors(
-                                containerColor = if (isSelected) {
-                                    MaterialTheme.colorScheme.secondaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                }
+                                containerColor = if (isSelected) SageContainerLight else Color(0xFFF9F5EC),
+                                labelColor = if (isSelected) CalmSageOlive else TextMutedClay
                             ),
+                            border = BorderStroke(
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) CalmSageOlive else CardBorderSubtle
+                            ),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.testTag("profile_chip_${profile.id}")
                         )
                     }
@@ -224,11 +252,14 @@ private fun ChildSessionHeader(
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Bedtime,
-                                contentDescription = "Wind down session",
+                                contentDescription = "Wind down",
+                                tint = SocraticCoral,
                                 modifier = Modifier.size(16.dp)
                             )
                         },
-                        label = { Text("Wind Down") },
+                        label = { Text("Waktu Istirahat", color = SocraticCoral) },
+                        border = BorderStroke(1.dp, SocraticCoral.copy(alpha = 0.4f)),
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.testTag("trigger_wind_down_button")
                     )
                 }
@@ -239,14 +270,28 @@ private fun ChildSessionHeader(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (isLocked) Icons.Default.Bedtime else Icons.Default.Star,
+                        contentDescription = null,
+                        tint = if (isLocked) MoonGlowYellow else AmberWarmSun,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isLocked) {
+                            "15 Menit Belajar Selesai (Waktu Istirahat)"
+                        } else {
+                            "Waktu Belajar Suara: %02d:%02d tersisa".format(remainingMinutes, remainingSeconds)
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (isLocked) SocraticCoral else TextEspresso
+                    )
+                }
                 Text(
-                    text = if (isLocked) {
-                        "🌙 Today's 15-Minute Story Time is Complete"
-                    } else {
-                        "⏳ Daily 15-Minute Voice Play • $remainingMinutes min left today"
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (isLocked) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface
+                    text = "Batas 15 Menit",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextMutedClay
                 )
             }
 
@@ -257,15 +302,15 @@ private fun ChildSessionHeader(
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .testTag("daily_session_progress"),
-                color = if (isLocked) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                color = if (isLocked) SocraticCoral else CalmSageOlive,
+                trackColor = Color(0xFFE5DDD0)
             )
         }
     }
 }
 
 @Composable
-private fun KikoCharacterStageCard(
+private fun SuaraHarianSocraticStageCard(
     currentTask: SocraticTask,
     stepDownLevel: Int,
     companionMoodText: String,
@@ -278,19 +323,18 @@ private fun KikoCharacterStageCard(
     onToggleNoisyRoomCards: () -> Unit,
     onNextStoryTask: () -> Unit
 ) {
-    val currentKikoPrompt = currentTask.let { task ->
-        when (stepDownLevel) {
-            0 -> task.openingQuestion
-            1 -> task.stepDown1Question
-            2 -> task.stepDown2Question
-            else -> task.stepDown3Scaffold
-        }
+    val currentPromptText = when (stepDownLevel) {
+        0 -> currentTask.openingQuestion
+        1 -> currentTask.stepDown1Question
+        2 -> currentTask.stepDown2Question
+        else -> currentTask.stepDown3Scaffold
     }
 
     Card(
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = CardWarmParchment),
+        border = BorderStroke(1.5.dp, CardBorderSubtle),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("kiko_character_stage")
@@ -301,72 +345,77 @@ private fun KikoCharacterStageCard(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                            MaterialTheme.colorScheme.surface
+                            SageContainerLight.copy(alpha = 0.5f),
+                            CardWarmParchment
                         )
                     )
                 )
-                .padding(18.dp),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // Task Topic Ribbon & Scaffolding Step Indicator
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    color = SageContainerLight,
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
                         text = "${currentTask.domain} • ${currentTask.ageTarget}",
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        color = CalmSageOlive,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
                 }
 
                 Surface(
-                    color = if (stepDownLevel > 0) {
-                        MaterialTheme.colorScheme.secondaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
+                    color = if (stepDownLevel > 0) Color(0xFFFBE8C8) else Color(0xFFEBE3D5),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.testTag("step_down_badge")
                 ) {
-                    Text(
-                        text = if (stepDownLevel == 0) {
-                            "Exploring Together"
-                        } else {
-                            "Step-Down Ladder: $stepDownLevel / 3"
-                        },
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (stepDownLevel > 0) {
-                            MaterialTheme.colorScheme.onSecondaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                    )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Psychology,
+                            contentDescription = null,
+                            tint = if (stepDownLevel > 0) SocraticCoral else TextMutedClay,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (stepDownLevel == 0) {
+                                "Tahap 1: Eksplorasi Mandiri"
+                            } else {
+                                "Step-Down Ladder: $stepDownLevel / 3"
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (stepDownLevel > 0) SocraticCoral else TextMutedClay
+                        )
+                    }
                 }
             }
 
-            // Breathing Kiko Owl Avatar
+            // Kiko Breathing Owl Stage Avatar (Voice Pulse Ring in CalmMintGlow)
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier.padding(vertical = 4.dp)
             ) {
+                // Expanding animated breathing aura
                 Box(
                     modifier = Modifier
-                        .size(148.dp)
+                        .size(150.dp)
                         .scale(pulseScale)
                         .clip(CircleShape)
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(
-                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f),
+                                    if (isListening || isSpeaking) CalmMintGlow.copy(alpha = 0.45f) else AmberWarmSun.copy(alpha = 0.25f),
                                     Color.Transparent
                                 )
                             )
@@ -374,27 +423,28 @@ private fun KikoCharacterStageCard(
                 )
                 Image(
                     painter = painterResource(id = R.drawable.img_companion_kiko_1791699428835),
-                    contentDescription = "Kiko the Owl Companion",
+                    contentDescription = "Kiko the Socratic Owl Companion",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(120.dp)
+                        .size(122.dp)
                         .scale(pulseScale)
                         .clip(CircleShape)
-                        .border(4.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                        .border(3.5.dp, CalmSageOlive, CircleShape)
                 )
             }
 
             Text(
                 text = currentTask.title,
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = TextEspresso,
                 textAlign = TextAlign.Center
             )
 
-            // Large Story Illustration Card
+            // Tactile Story Card & Speech Bubble
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = Color.White,
                 shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, CardBorderSubtle),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -408,21 +458,21 @@ private fun KikoCharacterStageCard(
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        text = "\"$currentKikoPrompt\"",
+                        text = "\"$currentPromptText\"",
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = TextEspresso,
                         textAlign = TextAlign.Center
                     )
                     Text(
                         text = companionMoodText,
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = CalmSageOlive,
                         textAlign = TextAlign.Center
                     )
                 }
             }
 
-            // Primary Voice Action Controls
+            // Primary Voice Action Button (Warm Coral, 56dp Touch Target)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -431,8 +481,9 @@ private fun KikoCharacterStageCard(
                 Button(
                     onClick = onStartListening,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isListening) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                        containerColor = if (isListening) CalmSageOlive else SocraticCoral
                     ),
+                    shape = RoundedCornerShape(20.dp),
                     modifier = Modifier
                         .weight(1f)
                         .height(56.dp)
@@ -440,31 +491,36 @@ private fun KikoCharacterStageCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Mic,
-                        contentDescription = "Talk to Kiko"
+                        contentDescription = "Bicara pada Kiko"
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isListening) "Listening..." else "Talk to Kiko",
+                        text = if (isListening) "Kiko Mendengarkan..." else "Bicara pada Kiko",
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
 
                 FilledTonalButton(
                     onClick = onSpeakPrompt,
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = SageContainerLight,
+                        contentColor = CalmSageOlive
+                    ),
                     modifier = Modifier
                         .height(56.dp)
                         .testTag("replay_kiko_voice_button")
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                        contentDescription = "Hear Kiko again"
+                        contentDescription = "Dengarkan suara Kiko"
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isSpeaking) "Speaking..." else "Listen")
+                    Text(if (isSpeaking) "Bicara..." else "Dengar")
                 }
             }
 
-            // Secondary Helpful Actions: "Noisy Room? Show Picture Cards" & "Next Story"
+            // Bottom Actions: Room Noise Fallback & Next Activity
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -472,26 +528,35 @@ private fun KikoCharacterStageCard(
             ) {
                 OutlinedButton(
                     onClick = onToggleNoisyRoomCards,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, CardBorderSubtle),
                     modifier = Modifier.testTag("trigger_low_snr_button")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Hearing,
-                        contentDescription = "Switch to picture tap cards",
+                        contentDescription = null,
+                        tint = if (isVisualFallbackActive) SocraticCoral else TextMutedClay,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isVisualFallbackActive) "Hide Picture Cards" else "Noisy Room? Tap Cards")
+                    Text(
+                        text = if (isVisualFallbackActive) "Tutup Kartu Pilihan" else "Ruangan Berisik? Kartu Gambar",
+                        color = if (isVisualFallbackActive) SocraticCoral else TextMutedClay
+                    )
                 }
 
                 OutlinedButton(
                     onClick = onNextStoryTask,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, CardBorderSubtle),
                     modifier = Modifier.testTag("next_story_button")
                 ) {
-                    Text("Next Riddle")
+                    Text("Cerita Lanjut", color = CalmSageOlive)
                     Spacer(modifier = Modifier.width(6.dp))
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Next story riddle",
+                        contentDescription = null,
+                        tint = CalmSageOlive,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -500,63 +565,77 @@ private fun KikoCharacterStageCard(
     }
 }
 
+/**
+ * Screen 2: Kartu Pilihan Fallback (High-Contrast, Tactile Picture Tap Targets for Ambient Noise / SNR Fallback)
+ */
 @Composable
-private fun MultimodalVisualFallbackSection(
+private fun KartuPilihanFallbackSection(
     task: SocraticTask,
     onSelectCard: (VisualCardOption) -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-        ),
-        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(26.dp),
+        border = BorderStroke(2.dp, CardOption1Border),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .border(2.dp, MaterialTheme.colorScheme.secondary, MaterialTheme.shapes.large)
             .testTag("visual_fallback_cards_container")
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.TouchApp,
-                    contentDescription = "Tap your answer",
-                    tint = MaterialTheme.colorScheme.secondary
-                )
+                Surface(
+                    color = CardOption1Bg,
+                    shape = CircleShape,
+                    modifier = Modifier.size(42.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.TouchApp,
+                            contentDescription = "Pilih gambar",
+                            tint = SocraticCoral,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
                 Column {
                     Text(
-                        text = "Tap Your Answer on the Screen!",
+                        text = "Ketuk Jawaban di Layar",
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                        color = TextEspresso
                     )
                     Text(
-                        text = "\"I'm having a little trouble hearing you. Can you tap your answer on the screen?\"",
+                        text = "\"Kiko agak sulit mendengar suaramu. Yuk ketuk kartu jawaban di bawah!\"",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                        color = TextMutedClay
                     )
                 }
             }
 
+            // High-Contrast Choice Tiles
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                task.fallbackOptions.forEach { option ->
+                task.fallbackOptions.forEachIndexed { idx, option ->
+                    val tileBg = if (idx == 0) CardOption1Bg else CardOption2Bg
+                    val tileBorder = if (idx == 0) CardOption1Border else CardOption2Border
+
                     Card(
                         onClick = { onSelectCard(option) },
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = tileBg),
+                        border = BorderStroke(2.dp, tileBorder),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(22.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(136.dp)
+                            .height(144.dp)
                             .testTag("fallback_card_${option.id}")
                             .semantics { contentDescription = option.spokenLabel }
                     ) {
@@ -569,7 +648,7 @@ private fun MultimodalVisualFallbackSection(
                         ) {
                             Text(
                                 text = option.emojiVisual,
-                                fontSize = 28.sp,
+                                fontSize = 32.sp,
                                 textAlign = TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -577,7 +656,8 @@ private fun MultimodalVisualFallbackSection(
                                 text = option.spokenLabel,
                                 style = MaterialTheme.typography.titleMedium,
                                 textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = TextEspresso,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -587,9 +667,101 @@ private fun MultimodalVisualFallbackSection(
     }
 }
 
+/**
+ * Screen 3: Waktu Istirahat Closing Ritual (Deep Twilight Indigo, Calm Sleep Transition)
+ */
+@Composable
+private fun WaktuIstirahatClosingRitualCard(
+    onParentResetSession: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = TwilightDeepIndigo),
+        shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(2.dp, TwilightBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("calm_closing_ritual_card")
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(26.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Glowing Moon Illustration Container
+            Surface(
+                color = TwilightCardSurface,
+                shape = CircleShape,
+                border = BorderStroke(2.dp, TwilightBorder),
+                modifier = Modifier.size(92.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Bedtime,
+                        contentDescription = "Bulan Waktu Istirahat",
+                        tint = MoonGlowYellow,
+                        modifier = Modifier.size(54.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = "Waktu Istirahat Tiba, Sahabat Cilik!",
+                style = MaterialTheme.typography.headlineMedium,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+
+            Surface(
+                color = TwilightCardSurface,
+                shape = RoundedCornerShape(18.dp),
+                border = BorderStroke(1.dp, TwilightBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "\"Kamu sudah belajar dengan sangat hebat hari ini! Petualangan kita selesai untuk hari ini. Saatnya mengistirahatkan telingamu!\"",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MoonGlowYellow,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+
+            Text(
+                text = "Kiko sekarang beristirahat di rumah pohon sampai jadwal belajar besok. Kembalikan ponsel kepada ayah atau ibu dengan tenang.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = StarLavender,
+                textAlign = TextAlign.Center
+            )
+
+            OutlinedButton(
+                onClick = onParentResetSession,
+                shape = RoundedCornerShape(18.dp),
+                border = BorderStroke(1.5.dp, MoonGlowYellow),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MoonGlowYellow
+                ),
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .testTag("parent_unlock_session_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LockOpen,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Orang Tua: Mulai Sesi Baru")
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun QuickChildVoiceBubblesCard(
+private fun QuickChildVoiceRepliesCard(
     currentTask: SocraticTask,
     onChildUtterance: (String) -> Unit
 ) {
@@ -609,8 +781,9 @@ private fun QuickChildVoiceBubblesCard(
     }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = CardWarmParchment),
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, CardBorderSubtle),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -619,16 +792,16 @@ private fun QuickChildVoiceBubblesCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Default.AutoAwesome,
+                    imageVector = Icons.Default.Star,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = AmberWarmSun,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Quick Voice Replies (Tap to answer aloud):",
+                    text = "Pilihan Suara Anak (Ketuk untuk menjawab):",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = TextEspresso
                 )
             }
 
@@ -638,25 +811,40 @@ private fun QuickChildVoiceBubblesCard(
             ) {
                 Button(
                     onClick = { onChildUtterance(rightSample) },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = CalmSageOlive),
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.testTag("simulate_correct_answer_button")
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text("🗣️ \"$rightSample\"")
                 }
 
                 FilledTonalButton(
                     onClick = { onChildUtterance(wrongSample) },
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = Color(0xFFFBE8C8),
+                        contentColor = SocraticCoral
+                    ),
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.testTag("simulate_wrong_answer_button")
                 ) {
                     Text("🤔 \"$wrongSample\"")
                 }
 
                 FilledTonalButton(
-                    onClick = { onChildUtterance("Can you give me a clue?") }
+                    onClick = { onChildUtterance("Minta petunjuk Kiko") },
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = SageContainerLight,
+                        contentColor = CalmSageOlive
+                    ),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
-                    Text("🦉 \"Give me a clue!\"")
+                    Text("🦉 \"Minta Petunjuk!\"")
                 }
             }
         }
@@ -664,71 +852,13 @@ private fun QuickChildVoiceBubblesCard(
 }
 
 @Composable
-private fun CalmClosingRitualCard(
-    onParentResetSession: () -> Unit
-) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        ),
-        shape = MaterialTheme.shapes.large,
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("calm_closing_ritual_card")
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Bedtime,
-                contentDescription = "Calm Closing Ritual",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(54.dp)
-            )
-            Text(
-                text = "See You Tomorrow, Little Explorer!",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "\"You worked so hard today! Our adventure is done for now. Time to rest your ears!\"",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "Kiko is sleeping in the treehouse until tomorrow's 15-minute story time.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                textAlign = TextAlign.Center
-            )
-            OutlinedButton(
-                onClick = onParentResetSession,
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .testTag("parent_unlock_session_button")
-            ) {
-                Icon(Icons.Default.LockOpen, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Parent: Start New Daily Session")
-            }
-        }
-    }
-}
-
-@Composable
-private fun StoryConversationCard(
+private fun SocraticConversationLogCard(
     dialogueHistory: List<DialogueMessage>
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = CardWarmParchment),
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(1.dp, CardBorderSubtle),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("socratic_dialogue_card")
@@ -738,20 +868,22 @@ private fun StoryConversationCard(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Our Story Conversation",
-                style = MaterialTheme.typography.titleLarge
+                text = "Percakapan Cerita Socratic",
+                style = MaterialTheme.typography.titleLarge,
+                color = TextEspresso
             )
 
             dialogueHistory.takeLast(5).forEachIndexed { idx, msg ->
                 val isKiko = msg.speaker == "Kiko"
                 val bgColor = when {
-                    msg.isHintStep -> MaterialTheme.colorScheme.secondaryContainer
-                    isKiko -> MaterialTheme.colorScheme.surfaceVariant
-                    else -> MaterialTheme.colorScheme.primaryContainer
+                    msg.isHintStep -> Color(0xFFFBE8C8)
+                    isKiko -> Color.White
+                    else -> SageContainerLight
                 }
                 Surface(
                     color = bgColor,
                     shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, CardBorderSubtle),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("dialogue_bubble_$idx")
@@ -763,15 +895,15 @@ private fun StoryConversationCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (isKiko) "🦉 Kiko" else "🗣️ Learner",
+                                text = if (isKiko) "🦉 Kiko Pendamping" else "🗣️ Anak",
                                 style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary
+                                color = if (isKiko) CalmSageOlive else SocraticCoral
                             )
                             msg.subtitle?.let { sub ->
                                 Text(
                                     text = sub,
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = TextMutedClay
                                 )
                             }
                         }
@@ -779,7 +911,7 @@ private fun StoryConversationCard(
                         Text(
                             text = msg.text,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = TextEspresso
                         )
                     }
                 }
