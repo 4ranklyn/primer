@@ -8,13 +8,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.R
 
-val FredokaFontFamily = FontFamily(
-    Font(R.font.fredoka, FontWeight.Normal),
-    Font(R.font.fredoka, FontWeight.Medium),
-    Font(R.font.fredoka, FontWeight.SemiBold),
-    Font(R.font.fredoka, FontWeight.Bold)
+// Child-Facing Audio-Support Tier (Nunito Sans - Montessori tactile rounded letters)
+val NunitoSansFontFamily = FontFamily(
+    Font(R.font.nunito_sans, FontWeight.Normal),
+    Font(R.font.nunito_sans, FontWeight.Bold),
+    Font(R.font.nunito_sans, FontWeight.ExtraBold)
 )
 
+// Parent Dashboard & Diagnostic Tier (Plus Jakarta Sans - Humanist & tabular clarity)
 val PlusJakartaSansFontFamily = FontFamily(
     Font(R.font.plus_jakarta_sans, FontWeight.Normal),
     Font(R.font.plus_jakarta_sans, FontWeight.Medium),
@@ -22,65 +23,111 @@ val PlusJakartaSansFontFamily = FontFamily(
     Font(R.font.plus_jakarta_sans, FontWeight.Bold)
 )
 
+// Calm Scaffolding Canonical Typography Tokens
+val DisplayChildXl = TextStyle(
+    fontFamily = NunitoSansFontFamily,
+    fontSize = 48.sp,
+    fontWeight = FontWeight.ExtraBold,
+    lineHeight = 56.sp,
+    letterSpacing = (-0.02).sp
+)
+
+val DisplayChildXlMobile = TextStyle(
+    fontFamily = NunitoSansFontFamily,
+    fontSize = 32.sp,
+    fontWeight = FontWeight.ExtraBold,
+    lineHeight = 40.sp,
+    letterSpacing = (-0.01).sp
+)
+
+val DisplayChildLg = TextStyle(
+    fontFamily = NunitoSansFontFamily,
+    fontSize = 36.sp,
+    fontWeight = FontWeight.Bold,
+    lineHeight = 44.sp,
+    letterSpacing = (-0.01).sp
+)
+
+val DisplayChildLgMobile = TextStyle(
+    fontFamily = NunitoSansFontFamily,
+    fontSize = 26.sp,
+    fontWeight = FontWeight.Bold,
+    lineHeight = 34.sp,
+    letterSpacing = 0.sp
+)
+
+val HeadlineParentLg = TextStyle(
+    fontFamily = PlusJakartaSansFontFamily,
+    fontSize = 30.sp,
+    fontWeight = FontWeight.Bold,
+    lineHeight = 38.sp,
+    letterSpacing = (-0.02).sp
+)
+
+val HeadlineParentMd = TextStyle(
+    fontFamily = PlusJakartaSansFontFamily,
+    fontSize = 22.sp,
+    fontWeight = FontWeight.SemiBold,
+    lineHeight = 30.sp,
+    letterSpacing = (-0.01).sp
+)
+
+val HeadlineParentSm = TextStyle(
+    fontFamily = PlusJakartaSansFontFamily,
+    fontSize = 18.sp,
+    fontWeight = FontWeight.SemiBold,
+    lineHeight = 26.sp,
+    letterSpacing = 0.sp
+)
+
+val BodyParentLg = TextStyle(
+    fontFamily = PlusJakartaSansFontFamily,
+    fontSize = 16.sp,
+    fontWeight = FontWeight.Normal,
+    lineHeight = 24.sp,
+    letterSpacing = 0.sp
+)
+
+val BodyParentMd = TextStyle(
+    fontFamily = PlusJakartaSansFontFamily,
+    fontSize = 14.sp,
+    fontWeight = FontWeight.Normal,
+    lineHeight = 22.sp,
+    letterSpacing = 0.01.sp
+)
+
+val LabelParentSemibold = TextStyle(
+    fontFamily = PlusJakartaSansFontFamily,
+    fontSize = 13.sp,
+    fontWeight = FontWeight.SemiBold,
+    lineHeight = 18.sp,
+    letterSpacing = 0.02.sp
+)
+
+val LabelParentCaps = TextStyle(
+    fontFamily = PlusJakartaSansFontFamily,
+    fontSize = 11.sp,
+    fontWeight = FontWeight.Bold,
+    lineHeight = 16.sp,
+    letterSpacing = 0.06.sp
+)
+
+val MetricTabularLg = TextStyle(
+    fontFamily = PlusJakartaSansFontFamily,
+    fontSize = 36.sp,
+    fontWeight = FontWeight.Bold,
+    lineHeight = 44.sp,
+    letterSpacing = (-0.02).sp
+)
+
 val Typography = Typography(
-    displayLarge = TextStyle(
-        fontFamily = FredokaFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 38.sp,
-        lineHeight = 46.sp
-    ),
-    displayMedium = TextStyle(
-        fontFamily = FredokaFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 32.sp,
-        lineHeight = 40.sp
-    ),
-    headlineLarge = TextStyle(
-        fontFamily = FredokaFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 26.sp,
-        lineHeight = 34.sp
-    ),
-    headlineMedium = TextStyle(
-        fontFamily = FredokaFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 22.sp,
-        lineHeight = 28.sp
-    ),
-    titleLarge = TextStyle(
-        fontFamily = FredokaFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 19.sp,
-        lineHeight = 26.sp
-    ),
-    titleMedium = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 16.sp,
-        lineHeight = 22.sp
-    ),
-    bodyLarge = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp
-    ),
-    labelLarge = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 14.sp,
-        lineHeight = 20.sp
-    ),
-    labelMedium = TextStyle(
-        fontFamily = PlusJakartaSansFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
-        lineHeight = 16.sp
-    )
+    displayLarge = DisplayChildXlMobile,
+    displayMedium = DisplayChildLgMobile,
+    headlineLarge = HeadlineParentLg,
+    headlineMedium = HeadlineParentMd,
+    titleLarge = HeadlineParentSm,
+    bodyLarge = BodyParentLg,
+    bodyMedium = BodyParentMd,
+    labelLarge = LabelParentSemibold,
+    labelMedium = LabelParentCaps
 )

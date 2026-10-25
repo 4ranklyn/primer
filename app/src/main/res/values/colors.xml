@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- Calm Scaffolding Palette -->
+    <color name="primary">#FF9D3E1A</color>
+    <color name="primary_container">#FFBD5630</color>
+    <color name="secondary">#FF3F674D</color>
+    <color name="secondary_container">#FFBEEAC9</color>
+    <color name="tertiary">#FF7B5500</color>
+    <color name="tertiary_container">#FF9B6B00</color>
+    <color name="background">#FFFFF8F6</color>
+    <color name="surface">#FFFFF8F6</color>
+    <color name="surface_cream">#FFFBF9F4</color>
+    <color name="surface_almond">#FFF5EFEB</color>
+    <color name="on_surface">#FF211A17</color>
+    <color name="on_surface_variant">#FF56423C</color>
+    <color name="outline">#FF8A726A</color>
+    <color name="outline_variant">#FFDDC0B7</color>
+    <color name="twilight_indigo">#FF232533</color>
+    <color name="twilight_amber">#FFC87D32</color>
 </resources>

@@ -2,45 +2,95 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Calm Scaffolding Color Palette (Anti-Slop, Warm Tactile Preschool Pedagogy)
-// Screen 1: Suara Harian Socratic (Sage Olive Green, Warm Sand, Terracotta Coral)
-val CalmSageOlive = Color(0xFF2C5E43)       // Deep grounding forest olive
-val CalmMintGlow = Color(0xFF8FD8A8)        // Pulse ring glow for listening
-val SoftSandCream = Color(0xFFFBF8F1)       // Background warm paper cream
-val CardWarmParchment = Color(0xFFF3ECE0)   // Card background
-val CardBorderSubtle = Color(0xFFE2D7C5)    // Organic tactile border
-val TextEspresso = Color(0xFF2B221B)        // Deep warm brown primary text
-val TextMutedClay = Color(0xFF706154)       // Secondary label clay brown
+// Calm Scaffolding Canonical Design System Tokens
+val CalmPrimary = Color(0xFF9D3E1A)
+val CalmOnPrimary = Color(0xFFFFFFFF)
+val CalmPrimaryContainer = Color(0xFFBD5630)
+val CalmOnPrimaryContainer = Color(0xFFFFFBFF)
+val CalmInversePrimary = Color(0xFFFFB59C)
 
-// Interactive Accent Tokens
-val SocraticCoral = Color(0xFFE26D46)       // Primary action button (warm terracotta)
-val SocraticCoralPressed = Color(0xFFC7552E)
-val AmberWarmSun = Color(0xFFE6A63E)        // Star / badge / hint indicator
-val AmberWarmContainer = Color(0xFFFBE8C8)
-val SageContainerLight = Color(0xFFE3F2E9)   // Active question bubble container
+val CalmSecondary = Color(0xFF3F674D)
+val CalmOnSecondary = Color(0xFFFFFFFF)
+val CalmSecondaryContainer = Color(0xFFBEEAC9)
+val CalmOnSecondaryContainer = Color(0xFF436B51)
 
-// Screen 2: Kartu Pilihan Fallback (High Contrast, Bold Playful Tiles)
-val CardOption1Bg = Color(0xFFFDF0DC)       // Warm peach tile
-val CardOption1Border = Color(0xFFE6A63E)
-val CardOption2Bg = Color(0xFFE8F4EC)       // Soft mint tile
-val CardOption2Border = Color(0xFF5AA87A)
+val CalmTertiary = Color(0xFF7B5500)
+val CalmOnTertiary = Color(0xFFFFFFFF)
+val CalmTertiaryContainer = Color(0xFF9B6B00)
+val CalmOnTertiaryContainer = Color(0xFFFFFBFF)
 
-// Screen 3: Waktu Istirahat Closing Ritual (Deep Twilight Indigo, Lavender Moonlight)
-val TwilightDeepIndigo = Color(0xFF182238)  // Calm night sky
-val TwilightCardSurface = Color(0xFF222E4A) // Dark card surface
-val TwilightBorder = Color(0xFF334368)
-val MoonGlowYellow = Color(0xFFFFD56B)      // Glowing crescent moon
-val StarLavender = Color(0xFFC6D4F8)        // Soft night text
-val StarLavenderMuted = Color(0xFF8F9FB8)
+val CalmSurface = Color(0xFFFFF8F6)
+val CalmSurfaceDim = Color(0xFFE6D7D2)
+val CalmSurfaceBright = Color(0xFFFFF8F6)
+val CalmSurfaceContainerLowest = Color(0xFFFFFFFF)
+val CalmSurfaceContainerLow = Color(0xFFFFF1EC)
+val CalmSurfaceContainer = Color(0xFFFAEBE6)
+val CalmSurfaceContainerHigh = Color(0xFFF4E5E0)
+val CalmSurfaceContainerHighest = Color(0xFFEEDFDA)
+val CalmOnSurface = Color(0xFF211A17)
+val CalmOnSurfaceVariant = Color(0xFF56423C)
+val CalmInverseSurface = Color(0xFF372F2B)
+val CalmInverseOnSurface = Color(0xFFFDEEE8)
 
-// Screen 4: Laporan Orang Tua Konsol (Analytical Clean, Muted Sage & Deep Navy)
-val ParentConsoleBg = Color(0xFFF9F7F2)
-val ParentSurfaceCard = Color(0xFFFFFFFF)
-val MetricPositiveGreen = Color(0xFF2E7D52)
-val MetricWarningClay = Color(0xFFC86834)
-val MetricSpiralPurple = Color(0xFF6B52A1)
+val CalmOutline = Color(0xFF8A726A)
+val CalmOutlineVariant = Color(0xFFDDC0B7)
+val CalmSurfaceTint = Color(0xFFA0401C)
 
-// Dark Mode Palette
-val DarkBgSurface = Color(0xFF151D18)
-val DarkSurfaceCard = Color(0xFF1E2922)
-val DarkBorder = Color(0xFF2D3C33)
+val CalmError = Color(0xFFBA1A1A)
+val CalmOnError = Color(0xFFFFFFFF)
+val CalmErrorContainer = Color(0xFFFFDAD6)
+val CalmOnErrorContainer = Color(0xFF93000A)
+
+// Fixed Tones
+val CalmPrimaryFixed = Color(0xFFFFDBCF)
+val CalmPrimaryFixedDim = Color(0xFFFFB59C)
+val CalmOnPrimaryFixed = Color(0xFF390C00)
+val CalmOnPrimaryFixedVariant = Color(0xFF802A05)
+
+val CalmSecondaryFixed = Color(0xFFC1EDCC)
+val CalmSecondaryFixedDim = Color(0xFFA5D1B1)
+val CalmOnSecondaryFixed = Color(0xFF00210F)
+val CalmOnSecondaryFixedVariant = Color(0xFF284F36)
+
+val CalmTertiaryFixed = Color(0xFFFFDEAD)
+val CalmTertiaryFixedDim = Color(0xFFFABC4D)
+val CalmOnTertiaryFixed = Color(0xFF281900)
+val CalmOnTertiaryFixedVariant = Color(0xFF604100)
+
+val CalmBackground = Color(0xFFFFF8F6)
+val CalmOnBackground = Color(0xFF211A17)
+val CalmSurfaceVariant = Color(0xFFEEDFDA)
+
+// Tactile & Storybook Custom Tokens
+val SurfaceCream = Color(0xFFFBF9F4)
+val SurfaceAlmond = Color(0xFFF5EFEB)
+val SurfaceSandSubtle = Color(0xFFEDE5DC)
+val TwilightAmber = Color(0xFFC87D32)
+val TwilightIndigo = Color(0xFF232533)
+val PrivacySageSoft = Color(0xFFE2ECE5)
+val PurgeIndicatorAmber = Color(0xFFF4EDE2)
+val CardBorderTactile = Color(0xFFE2D7CC)
+val CardLipBottom = Color(0xFFDDC0B7)
+
+// Common M3 Aliases
+val OnSecondaryContainer = CalmOnSecondaryContainer
+val OnPrimaryFixed = CalmOnPrimaryFixed
+val OnPrimary = CalmOnPrimary
+val OnSecondary = CalmOnSecondary
+val OnTertiary = CalmOnTertiary
+val OnSurface = CalmOnSurface
+val OnSurfaceVariant = CalmOnSurfaceVariant
+
+// Semantic House Aliases for Existing Callers
+val TerracottaPrimary = CalmPrimary
+val PrimaryVariant = CalmPrimaryContainer
+val TerracottaContainer = CalmPrimaryContainer
+val SageSecondary = CalmSecondary
+val SageContainer = CalmSecondaryContainer
+val HoneyOchreTertiary = CalmTertiary
+val HoneyOchreContainer = CalmTertiaryContainer
+val EspressoSlate = CalmOnSurface
+val EspressoMuted = CalmOnSurfaceVariant
+val OutlineMuted = CalmOutline
+val MoonGlow = CalmTertiaryFixed
+val StarLavenderMuted = Color(0xFFC6D4F8)

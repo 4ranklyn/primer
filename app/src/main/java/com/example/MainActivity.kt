@@ -9,7 +9,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,13 +19,20 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.LibraryBooks
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -50,33 +59,42 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.screens.CurriculumBundlesScreen
 import com.example.ui.screens.ParentHubScreen
 import com.example.ui.screens.PrivacyAndUnitEconomicsScreen
 import com.example.ui.screens.VoiceCompanionScreen
-import com.example.ui.theme.CalmSageOlive
-import com.example.ui.theme.CardBorderSubtle
-import com.example.ui.theme.CardWarmParchment
+import com.example.ui.theme.CalmPrimary
+import com.example.ui.theme.CalmPrimaryFixed
+import com.example.ui.theme.CalmSecondary
+import com.example.ui.theme.CalmSecondaryContainer
+import com.example.ui.theme.CalmSurfaceContainer
+import com.example.ui.theme.CalmTertiary
+import com.example.ui.theme.CardBorderTactile
+import com.example.ui.theme.EspressoMuted
+import com.example.ui.theme.EspressoSlate
 import com.example.ui.theme.MyApplicationTheme
-import com.example.ui.theme.SageContainerLight
-import com.example.ui.theme.SoftSandCream
-import com.example.ui.theme.SocraticCoral
-import com.example.ui.theme.TextEspresso
-import com.example.ui.theme.TextMutedClay
+import com.example.ui.theme.OnSecondaryContainer
+import com.example.ui.theme.PrivacySageSoft
+import com.example.ui.theme.SurfaceAlmond
+import com.example.ui.theme.SurfaceCream
+import com.example.ui.theme.TerracottaPrimary
 import com.example.viewmodel.CalistungViewModel
 
 enum class AppDestination(val routeId: String, val labelRes: Int) {
-    COMPANION("companion_stage", R.string.nav_companion),
-    CURRICULUM("curriculum_bundles", R.string.nav_curriculum),
-    PARENT_HUB("parent_hub", R.string.nav_parent_hub),
-    PRIVACY_OPS("privacy_ops", R.string.nav_privacy_ops)
+    COMPANION("suara", R.string.nav_suara),
+    CURRICULUM("pilihan", R.string.nav_pilihan),
+    PRIVACY_OPS("istirahat", R.string.nav_istirahat),
+    PARENT_HUB("laporan", R.string.nav_laporan)
 }
 
 class MainActivity : ComponentActivity() {
@@ -121,101 +139,205 @@ fun KikoCalistungApp(
         viewModel.startRealMicrophoneListening()
     }
 
+    val remMin = (900 - uiState.sessionElapsedSeconds).coerceAtLeast(0) / 60
+    val currentSubtitle = when (currentTab) {
+        AppDestination.COMPANION -> "Suara"
+        AppDestination.CURRICULUM -> "Pilihan"
+        AppDestination.PRIVACY_OPS -> "Istirahat"
+        AppDestination.PARENT_HUB -> "Laporan"
+    }
+
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = stringResource(id = R.string.app_name),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = TextEspresso
-                        )
-                        Text(
-                            text = stringResource(id = R.string.tagline),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = TextMutedClay
-                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Surface(
+                            color = CalmSurfaceContainer,
+                            shape = CircleShape,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Psychology,
+                                    contentDescription = null,
+                                    tint = CalmPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "Kiko",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = EspressoSlate
+                                )
+                                Surface(
+                                    color = CalmSecondaryContainer,
+                                    shape = RoundedCornerShape(9999.dp)
+                                ) {
+                                    Text(
+                                        text = "TEMAN BELAJAR",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = OnSecondaryContainer,
+                                        letterSpacing = 0.5.sp,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = currentSubtitle,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = EspressoMuted
+                            )
+                        }
                     }
                 },
                 actions = {
+                    Surface(
+                        color = CalmSurfaceContainer,
+                        shape = RoundedCornerShape(9999.dp),
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = null,
+                                tint = CalmTertiary,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = "${remMin}m",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = EspressoSlate
+                            )
+                        }
+                    }
+
                     IconButton(
                         onClick = { viewModel.openParentalConsentModal(true) },
                         modifier = Modifier.testTag("top_consent_shield_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.VerifiedUser,
-                            contentDescription = "Persetujuan Privasi Orang Tua",
-                            tint = CalmSageOlive
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Buka Mode Orang Tua",
+                            tint = EspressoMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(CalmPrimary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Profil",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SoftSandCream
+                    containerColor = SurfaceCream
                 )
             )
         },
         bottomBar = {
             NavigationBar(
-                containerColor = CardWarmParchment,
+                containerColor = SurfaceCream,
                 modifier = Modifier.testTag("main_bottom_navigation")
             ) {
                 NavigationBarItem(
                     selected = currentTab == AppDestination.COMPANION,
                     onClick = { currentTab = AppDestination.COMPANION },
-                    icon = { Icon(Icons.Default.RecordVoiceOver, contentDescription = "Bermain dengan Kiko") },
-                    label = { Text(stringResource(id = R.string.nav_companion)) },
+                    icon = { Icon(Icons.Default.Mic, contentDescription = "Suara") },
+                    label = { Text("Suara", fontWeight = if (currentTab == AppDestination.COMPANION) FontWeight.Bold else FontWeight.Normal) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color.White,
-                        selectedTextColor = CalmSageOlive,
-                        indicatorColor = CalmSageOlive,
-                        unselectedIconColor = TextMutedClay,
-                        unselectedTextColor = TextMutedClay
+                        selectedIconColor = CalmPrimary,
+                        selectedTextColor = CalmPrimary,
+                        indicatorColor = CalmPrimaryFixed.copy(alpha = 0.5f),
+                        unselectedIconColor = EspressoMuted,
+                        unselectedTextColor = EspressoMuted
                     ),
                     modifier = Modifier.testTag("nav_tab_companion")
                 )
+
                 NavigationBarItem(
                     selected = currentTab == AppDestination.CURRICULUM,
                     onClick = { currentTab = AppDestination.CURRICULUM },
-                    icon = { Icon(Icons.AutoMirrored.Filled.LibraryBooks, contentDescription = "Cerita Belajar") },
-                    label = { Text(stringResource(id = R.string.nav_curriculum)) },
+                    icon = { Icon(Icons.Default.Style, contentDescription = "Pilihan") },
+                    label = { Text("Pilihan", fontWeight = if (currentTab == AppDestination.CURRICULUM) FontWeight.Bold else FontWeight.Normal) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color.White,
-                        selectedTextColor = CalmSageOlive,
-                        indicatorColor = CalmSageOlive,
-                        unselectedIconColor = TextMutedClay,
-                        unselectedTextColor = TextMutedClay
+                        selectedIconColor = CalmPrimary,
+                        selectedTextColor = CalmPrimary,
+                        indicatorColor = CalmPrimaryFixed.copy(alpha = 0.5f),
+                        unselectedIconColor = EspressoMuted,
+                        unselectedTextColor = EspressoMuted
                     ),
                     modifier = Modifier.testTag("nav_tab_curriculum")
                 )
-                NavigationBarItem(
-                    selected = currentTab == AppDestination.PARENT_HUB,
-                    onClick = { currentTab = AppDestination.PARENT_HUB },
-                    icon = { Icon(Icons.Default.Analytics, contentDescription = "Konsol Orang Tua") },
-                    label = { Text(stringResource(id = R.string.nav_parent_hub)) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color.White,
-                        selectedTextColor = CalmSageOlive,
-                        indicatorColor = CalmSageOlive,
-                        unselectedIconColor = TextMutedClay,
-                        unselectedTextColor = TextMutedClay
-                    ),
-                    modifier = Modifier.testTag("nav_tab_parent_hub")
-                )
+
                 NavigationBarItem(
                     selected = currentTab == AppDestination.PRIVACY_OPS,
                     onClick = { currentTab = AppDestination.PRIVACY_OPS },
-                    icon = { Icon(Icons.Default.Security, contentDescription = "Pengaturan Keluarga") },
-                    label = { Text(stringResource(id = R.string.nav_privacy_ops)) },
+                    icon = { Icon(Icons.Default.Bedtime, contentDescription = "Istirahat") },
+                    label = { Text("Istirahat", fontWeight = if (currentTab == AppDestination.PRIVACY_OPS) FontWeight.Bold else FontWeight.Normal) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color.White,
-                        selectedTextColor = CalmSageOlive,
-                        indicatorColor = CalmSageOlive,
-                        unselectedIconColor = TextMutedClay,
-                        unselectedTextColor = TextMutedClay
+                        selectedIconColor = CalmPrimary,
+                        selectedTextColor = CalmPrimary,
+                        indicatorColor = CalmPrimaryFixed.copy(alpha = 0.5f),
+                        unselectedIconColor = EspressoMuted,
+                        unselectedTextColor = EspressoMuted
                     ),
                     modifier = Modifier.testTag("nav_tab_privacy_ops")
+                )
+
+                NavigationBarItem(
+                    selected = currentTab == AppDestination.PARENT_HUB,
+                    onClick = { currentTab = AppDestination.PARENT_HUB },
+                    icon = {
+                        Box {
+                            Icon(Icons.Default.Insights, contentDescription = "Laporan")
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = CalmPrimary,
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .align(Alignment.TopEnd)
+                            )
+                        }
+                    },
+                    label = { Text("Laporan", fontWeight = if (currentTab == AppDestination.PARENT_HUB) FontWeight.Bold else FontWeight.Normal) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = CalmPrimary,
+                        selectedTextColor = CalmPrimary,
+                        indicatorColor = CalmPrimaryFixed.copy(alpha = 0.5f),
+                        unselectedIconColor = EspressoMuted,
+                        unselectedTextColor = EspressoMuted
+                    ),
+                    modifier = Modifier.testTag("nav_tab_parent_hub")
                 )
             }
         }
@@ -281,68 +403,76 @@ fun KikoCalistungApp(
                 )
             }
         }
-    }
 
-    if (uiState.showConsentModal) {
-        var parentNameInput by remember { mutableStateOf("Orang Tua / Wali") }
-        AlertDialog(
-            onDismissRequest = { viewModel.openParentalConsentModal(false) },
-            shape = RoundedCornerShape(24.dp),
-            containerColor = Color.White,
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.VerifiedUser,
-                        contentDescription = null,
-                        tint = CalmSageOlive
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Persetujuan Suara Orang Tua", color = TextEspresso)
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Surface(
-                        color = SageContainerLight,
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, CardBorderSubtle)
-                    ) {
-                        Text(
-                            text = "\"${stringResource(id = R.string.consent_notice_verbatim)}\"",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontStyle = FontStyle.Italic,
-                            color = TextEspresso,
-                            modifier = Modifier.padding(14.dp)
-                        )
-                    }
-                    OutlinedTextField(
-                        value = parentNameInput,
-                        onValueChange = { parentNameInput = it },
-                        label = { Text("Nama Orang Tua / Wali") },
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("parent_consent_id_input")
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { viewModel.recordParentalConsentAffirmation(parentNameInput) },
-                    colors = ButtonDefaults.buttonColors(containerColor = CalmSageOlive),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.testTag("confirm_parental_consent_button")
-                ) {
-                    Text("Saya Setuju & Aktifkan Suara")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { viewModel.openParentalConsentModal(false) }
-                ) {
-                    Text("Tutup", color = TextMutedClay)
-                }
-            }
-        )
+        if (uiState.showConsentModal) {
+            ParentalConsentShieldDialog(
+                onAccept = {
+                    viewModel.recordParentalConsentAffirmation("Affirmative Parental Consent via In-App Shield Modal")
+                    viewModel.openParentalConsentModal(false)
+                },
+                onDismiss = { viewModel.openParentalConsentModal(false) }
+            )
+        }
     }
+}
+
+@Composable
+private fun ParentalConsentShieldDialog(
+    onAccept: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var parentNameInput by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.VerifiedUser,
+                    contentDescription = null,
+                    tint = CalmSecondary
+                )
+                Text(
+                    text = "Perlindungan & Privasi Anak",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = EspressoSlate
+                )
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = stringResource(id = R.string.consent_notice_verbatim),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = EspressoMuted
+                )
+                OutlinedTextField(
+                    value = parentNameInput,
+                    onValueChange = { parentNameInput = it },
+                    label = { Text("Nama Orang Tua / Wali") },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onAccept,
+                colors = ButtonDefaults.buttonColors(containerColor = CalmSecondary),
+                shape = RoundedCornerShape(9999.dp)
+            ) {
+                Text("Saya Menyetujui")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Tutup", color = EspressoMuted)
+            }
+        },
+        containerColor = SurfaceCream,
+        shape = RoundedCornerShape(24.dp)
+    )
 }

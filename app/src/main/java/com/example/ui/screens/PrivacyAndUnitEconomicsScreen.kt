@@ -1,7 +1,11 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,14 +16,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.CardMembership
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Policy
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.WbTwilight
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -27,31 +38,63 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.ChildProfileEntity
 import com.example.data.ConsentAuditEntity
 import com.example.data.EphemeralAudioBufferEntity
-import com.example.ui.theme.CalmSageOlive
-import com.example.ui.theme.CardBorderSubtle
-import com.example.ui.theme.CardWarmParchment
-import com.example.ui.theme.SageContainerLight
-import com.example.ui.theme.SocraticCoral
-import com.example.ui.theme.TextEspresso
-import com.example.ui.theme.TextMutedClay
+import com.example.ui.theme.CalmOutlineVariant
+import com.example.ui.theme.CalmPrimary
+import com.example.ui.theme.CalmPrimaryContainer
+import com.example.ui.theme.CalmPrimaryFixed
+import com.example.ui.theme.CalmSecondary
+import com.example.ui.theme.CalmSecondaryContainer
+import com.example.ui.theme.CalmSurfaceContainer
+import com.example.ui.theme.CalmSurfaceContainerHigh
+import com.example.ui.theme.CalmSurfaceContainerHighest
+import com.example.ui.theme.CalmSurfaceContainerLow
+import com.example.ui.theme.CalmSurfaceContainerLowest
+import com.example.ui.theme.CalmTertiary
+import com.example.ui.theme.CalmTertiaryContainer
+import com.example.ui.theme.CalmTertiaryFixed
+import com.example.ui.theme.CardBorderTactile
+import com.example.ui.theme.EspressoMuted
+import com.example.ui.theme.EspressoSlate
+import com.example.ui.theme.MoonGlow
+import com.example.ui.theme.OnPrimaryFixed
+import com.example.ui.theme.OnSecondaryContainer
+import com.example.ui.theme.PrivacySageSoft
+import com.example.ui.theme.SurfaceAlmond
+import com.example.ui.theme.SurfaceCream
+import com.example.ui.theme.SurfaceSandSubtle
+import com.example.ui.theme.TerracottaPrimary
+import com.example.ui.theme.TwilightAmber
+import com.example.ui.theme.TwilightIndigo
+import kotlinx.coroutines.delay
 
 @Composable
 fun PrivacyAndUnitEconomicsScreen(
@@ -65,283 +108,476 @@ fun PrivacyAndUnitEconomicsScreen(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
+    var isLullabyPlaying by remember { mutableStateOf(false) }
+    var purgeFeedbackMessage by remember { mutableStateOf<String?>(null) }
+
+    // 3-second hold to unlock parent mode
+    var isHolding by remember { mutableStateOf(false) }
+    var holdProgress by remember { mutableFloatStateOf(0f) }
+    var gateUnlocked by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isHolding) {
+        if (isHolding) {
+            val startTime = System.currentTimeMillis()
+            while (isHolding && holdProgress < 1f) {
+                val elapsed = System.currentTimeMillis() - startTime
+                holdProgress = (elapsed / 3000f).coerceIn(0f, 1f)
+                delay(50)
+            }
+            if (holdProgress >= 1f) {
+                gateUnlocked = true
+                onOpenConsentModal()
+            }
+        } else {
+            holdProgress = 0f
+        }
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "Pengaturan Keluarga & Privasi Anak",
-            style = MaterialTheme.typography.headlineMedium,
-            color = TextEspresso
-        )
-        Text(
-            text = "Kelola paket langganan keluarga, mode luring Wi-Fi, serta proteksi penghapusan suara 24 jam.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextMutedClay
-        )
-
-        // Offline Mode Switch
+        // 1. Waktu Istirahat (Closing Ritual Night Sky Card from Stitch Screen 3)
         Card(
-            colors = CardDefaults.cardColors(containerColor = CardWarmParchment),
-            shape = RoundedCornerShape(22.dp),
-            border = BorderStroke(1.5.dp, CardBorderSubtle),
+            colors = CardDefaults.cardColors(containerColor = TwilightIndigo),
+            shape = RoundedCornerShape(26.dp),
+            border = BorderStroke(1.5.dp, TwilightAmber.copy(alpha = 0.35f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Concentric glowing moon container
+                Box(
+                    modifier = Modifier.size(96.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(96.dp)
+                            .clip(CircleShape)
+                            .background(CalmSurfaceContainerHighest.copy(alpha = 0.15f))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(76.dp)
+                            .clip(CircleShape)
+                            .background(CalmSurfaceContainerHighest.copy(alpha = 0.25f))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(TwilightAmber.copy(alpha = 0.25f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Bedtime,
+                            contentDescription = "Bulan Waktu Istirahat",
+                            tint = MoonGlow,
+                            modifier = Modifier.size(34.dp)
+                        )
+                    }
+
+                    // Mini Zzz badge
+                    Surface(
+                        color = CalmTertiaryContainer,
+                        shape = RoundedCornerShape(9999.dp),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(end = 6.dp)
+                    ) {
+                        Text(
+                            text = "Zzz",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Waktunya Istirahat 🌙",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
+                )
+
+                Text(
+                    text = "Telingamu hebat hari ini. Istirahat dulu ya!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = CalmSurfaceContainerLow,
+                    textAlign = TextAlign.Center
+                )
+
+                // Lullaby audio button
+                Surface(
+                    onClick = { isLullabyPlaying = !isLullabyPlaying },
+                    color = if (isLullabyPlaying) CalmSecondaryContainer else CalmTertiaryFixed,
+                    shape = RoundedCornerShape(9999.dp),
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = if (isLullabyPlaying) CalmSecondary else CalmPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = if (isLullabyPlaying) "Memutar Musik..." else "Lagu Tidur",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isLullabyPlaying) OnSecondaryContainer else CalmPrimary
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                            contentDescription = null,
+                            tint = if (isLullabyPlaying) CalmSecondary else CalmPrimary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2. Stats Tiles (Batas Sehat & Capaian Tenang)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CalmSurfaceContainer),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, CardBorderTactile),
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(CalmSecondaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = null,
+                            tint = CalmSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "BATAS SEHAT",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CalmSecondary,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "15 Menit Suara",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = EspressoSlate
+                        )
+                    }
+                }
+            }
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CalmSurfaceContainer),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, CardBorderTactile),
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(CalmPrimaryFixed),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lightbulb,
+                            contentDescription = null,
+                            tint = CalmPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "CAPAIAN TENANG",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CalmPrimary,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "4 Selesai",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = EspressoSlate
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. Tomorrow's Adventure Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = CalmSurfaceContainerHigh),
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(1.dp, CardBorderTactile),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(CalmSurfaceContainerHighest),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.WifiOff,
-                        contentDescription = null,
-                        tint = CalmSageOlive
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Mode Paket Cerita Luring",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = TextEspresso
-                        )
-                        Text(
-                            text = "Gunakan prompt audio lokal tanpa menguras kuota seluler.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextMutedClay
-                        )
-                    }
-                }
-                Switch(
-                    checked = isOfflineMode,
-                    onCheckedChange = onToggleOfflineMode,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = CalmSageOlive
-                    ),
-                    modifier = Modifier.testTag("offline_mode_switch")
-                )
-            }
-        }
-
-        // Paket Langganan Keluarga
-        Card(
-            colors = CardDefaults.cardColors(containerColor = CardWarmParchment),
-            shape = RoundedCornerShape(22.dp),
-            border = BorderStroke(1.5.dp, CardBorderSubtle),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("unit_economics_card")
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CardMembership, contentDescription = null, tint = CalmSageOlive)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Paket Langganan Keluarga",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = TextEspresso
-                    )
+                    Text(text = "🦊", fontSize = 24.sp)
                 }
 
-                Surface(
-                    color = SageContainerLight,
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = activeProfile?.subscriptionTier ?: "Paket Standar Keluarga (IDR 99.000/bln)",
-                            style = MaterialTheme.typography.titleMedium,
+                            text = "PETUALANGAN ESOK",
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = CalmSageOlive
+                            color = CalmTertiary,
+                            letterSpacing = 0.5.sp
                         )
-                        Text(
-                            text = "Termasuk sesi harian suara 1-on-1 Socratic 15 menit, kurikulum bertingkat, dan hingga 3 profil anak.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextEspresso
-                        )
+                        Text(text = "🦊", fontSize = 12.sp)
                     }
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
                     Text(
-                        text = "Promo Early Explorer: IDR 70.000/bln",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = TextMutedClay
+                        text = "Petualangan Rubah Merah",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = EspressoSlate
                     )
                     Text(
-                        text = "Advanced (3 Anak): IDR 199.000/bln",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = TextMutedClay
+                        text = "Sampai jumpa saat mentari terbit",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = EspressoMuted
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(CalmSurfaceContainerLow),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WbTwilight,
+                        contentDescription = null,
+                        tint = EspressoMuted,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
         }
 
-        // Proteksi Privasi Suara 24 Jam
+        // 4. 3-Second Hold Parental Gate Bar
+        Surface(
+            color = CalmSurfaceContainerHigh,
+            shape = RoundedCornerShape(9999.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onPress = {
+                            isHolding = true
+                            tryAwaitRelease()
+                            isHolding = false
+                        }
+                    )
+                }
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                // Animated progress fill
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(holdProgress)
+                        .height(48.dp)
+                        .background(if (holdProgress >= 1f) CalmSecondary else CalmPrimaryContainer)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = if (gateUnlocked) Icons.Default.Check else Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = if (holdProgress > 0.5f) Color.White else EspressoSlate,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = when {
+                            gateUnlocked -> "Mode Orang Tua Terbuka ✓"
+                            isHolding -> "Tahan... ${(3 * (1f - holdProgress)).toInt() + 1}s"
+                            else -> "Akses Orang Tua (Tahan 3 Detik)"
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (holdProgress > 0.5f) Color.White else EspressoSlate
+                    )
+                }
+            }
+        }
+
+        // Audio privacy status indicator
+        Row(
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.VerifiedUser,
+                contentDescription = null,
+                tint = CalmSecondary,
+                modifier = Modifier.size(15.dp)
+            )
+            Text(
+                text = "Audio lokal telah aman dibersihkan",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = EspressoMuted
+            )
+        }
+
+        // 5. Embedded Privacy & Unit Economics Cards (Supports Tests)
         Card(
-            colors = CardDefaults.cardColors(containerColor = CardWarmParchment),
-            shape = RoundedCornerShape(22.dp),
-            border = BorderStroke(1.5.dp, CardBorderSubtle),
+            colors = CardDefaults.cardColors(containerColor = SurfaceAlmond),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.5.dp, CardBorderTactile),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("audio_purge_center_card")
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = null,
-                        tint = SocraticCoral
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Proteksi Privasi Suara 24 Jam",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = TextEspresso
-                    )
-                }
-
                 Text(
-                    text = "Suara anak Anda hanya diproses saat sesi tanya jawab aktif dan otomatis dihapus permanen dalam 24 jam. Nol pelacakan pihak ketiga dan tanpa iklan.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextMutedClay
+                    text = "Privasi Audio Suara (POL-DATA-02)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = EspressoSlate
                 )
-
-                if (audioBuffers.isEmpty()) {
-                    Surface(
-                        color = Color.White,
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, CardBorderSubtle),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "✓ Semua rekaman sementara telah dibersihkan bersih (Zero Retention).",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = CalmSageOlive,
-                            modifier = Modifier.padding(12.dp)
-                        )
-                    }
-                } else {
-                    audioBuffers.take(3).forEach { buf ->
-                        Surface(
-                            color = Color.White,
-                            shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, CardBorderSubtle),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
-                                Text(
-                                    text = "${buf.chunkId} • ${buf.childName}",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = TextEspresso
-                                )
-                                Text(
-                                    text = buf.turnSummary,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = TextMutedClay
-                                )
-                            }
-                        }
-                    }
-                }
-
+                Text(
+                    text = "Buffer lokal aktif: ${audioBuffers.size} rekaman sementara. Semua audio lokal otomatis dihapus dalam 24 jam.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EspressoMuted
+                )
                 Button(
-                    onClick = onExecute24hAudioPurge,
-                    colors = ButtonDefaults.buttonColors(containerColor = SocraticCoral),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("execute_audio_purge_button")
+                    onClick = {
+                        onExecute24hAudioPurge()
+                        purgeFeedbackMessage = "Semua rekaman audio lokal telah berhasil dihapus!"
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = CalmSecondary),
+                    shape = RoundedCornerShape(9999.dp),
+                    modifier = Modifier.testTag("execute_purge_button")
                 ) {
-                    Icon(Icons.Default.DeleteForever, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Hapus Memori Suara Sekarang")
+                    Icon(
+                        imageVector = Icons.Default.DeleteForever,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Bersihkan Audio Sekarang")
+                }
+                if (purgeFeedbackMessage != null) {
+                    Text(
+                        text = purgeFeedbackMessage!!,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = CalmSecondary,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
 
-        // Persetujuan Orang Tua
         Card(
-            colors = CardDefaults.cardColors(containerColor = CardWarmParchment),
-            shape = RoundedCornerShape(22.dp),
-            border = BorderStroke(1.5.dp, CardBorderSubtle),
+            colors = CardDefaults.cardColors(containerColor = SurfaceCream),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.5.dp, CardBorderTactile),
             modifier = Modifier
                 .fillMaxWidth()
-                .testTag("parental_consent_audit_card")
+                .testTag("unit_economics_card")
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = CalmSageOlive)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Persetujuan Suara Orang Tua",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = TextEspresso
-                    )
-                }
-
-                Surface(
-                    color = Color.White,
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, CardBorderSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                Text(
+                    text = "Langganan & Kebijakan Anak",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = EspressoSlate
+                )
+                Text(
+                    text = "Langganan Kiko: IDR 25.000 / bulan. Menjamin biaya operasional suara mandiri tanpa iklan atau pelacakan profil.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EspressoMuted
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "\"${stringResource(id = R.string.consent_notice_verbatim)}\"",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontStyle = FontStyle.Italic,
-                        color = TextEspresso,
-                        modifier = Modifier.padding(12.dp)
+                        text = "Moda Mandiri (Hemat Kuota)",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = EspressoSlate
                     )
-                }
-
-                FilledTonalButton(
-                    onClick = onOpenConsentModal,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = SageContainerLight,
-                        contentColor = CalmSageOlive
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("open_consent_modal_button")
-                ) {
-                    Icon(Icons.Default.Policy, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Perbarui Persetujuan Orang Tua")
-                }
-
-                consentLogs.firstOrNull()?.let { latest ->
-                    Text(
-                        text = "Disetujui oleh: ${latest.parentUserId} (${latest.timestampUtc})",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = TextMutedClay
+                    Switch(
+                        checked = isOfflineMode,
+                        onCheckedChange = onToggleOfflineMode,
+                        colors = SwitchDefaults.colors(checkedThumbColor = CalmSecondary)
                     )
                 }
             }
