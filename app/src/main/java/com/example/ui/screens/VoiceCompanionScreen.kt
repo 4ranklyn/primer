@@ -107,6 +107,8 @@ fun VoiceCompanionScreen(
     onParentResetSession: () -> Unit,
     onRequestMicAndListen: () -> Unit,
     onSpeakCurrentPrompt: () -> Unit,
+    onStartCoPlayDemo: () -> Unit = {},
+    onCompleteCoPlayDemo: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -136,6 +138,59 @@ fun VoiceCompanionScreen(
             .testTag("kiko_character_stage"),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // 3-Minute Co-Play Onboarding Guided Banner (PRD Section 8.2 & 12.1)
+        if (uiState.isCoPlayDemoActive) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CalmPrimaryContainer),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.5.dp, CalmPrimary),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("co_play_onboarding_card")
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(text = "🤝", fontSize = 24.sp)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Mode Demo Co-Play (3 Menit)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = EspressoSlate
+                            )
+                            Text(
+                                text = "Orang tua & anak mendengarkan dan menjawab bersama Kiko",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = EspressoMuted
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Dampingi anak Anda menjawab dengan suara lantang. Perhatikan bagaimana Kiko tidak pernah menyalahkan dan membimbing langkah demi langkah!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = EspressoSlate
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(
+                            onClick = onCompleteCoPlayDemo,
+                            colors = ButtonDefaults.buttonColors(containerColor = CalmPrimary),
+                            shape = RoundedCornerShape(9999.dp)
+                        ) {
+                            Text("Selesai Demo", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
         // 1. Session Status & Warm Motivation Badges
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -697,6 +752,23 @@ fun VoiceCompanionScreen(
                             .testTag("trigger_wind_down_button")
                     ) {
                         Text("Waktu Tidur", fontSize = 11.sp, color = CalmTertiary)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            if (uiState.isCoPlayDemoActive) onCompleteCoPlayDemo() else onStartCoPlayDemo()
+                        },
+                        shape = RoundedCornerShape(9999.dp),
+                        border = BorderStroke(1.dp, CardBorderTactile),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("trigger_co_play_demo_button")
+                    ) {
+                        Text(
+                            text = if (uiState.isCoPlayDemoActive) "Tutup Demo" else "Demo Co-Play",
+                            fontSize = 11.sp,
+                            color = EspressoSlate
+                        )
                     }
                 }
             }

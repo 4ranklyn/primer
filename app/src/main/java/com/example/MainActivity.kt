@@ -125,6 +125,20 @@ fun KikoCalistungApp(
     val isListening by viewModel.isListening.collectAsStateWithLifecycle()
 
     var currentTab by rememberSaveable { mutableStateOf(AppDestination.COMPANION) }
+    var pendingParentDestination by remember { mutableStateOf<AppDestination?>(null) }
+    var isParentGateUnlocked by rememberSaveable { mutableStateOf(false) }
+
+    val isSessionActive = !uiState.isSessionLockedWindDown && uiState.sessionElapsedSeconds > 0 && uiState.currentStepDownLevel > 0
+
+    val navigateToDestination = { dest: AppDestination ->
+        if (dest == AppDestination.COMPANION) {
+            currentTab = AppDestination.COMPANION
+        } else if (!isSessionActive || isParentGateUnlocked) {
+            currentTab = dest
+        } else {
+            pendingParentDestination = dest
+        }
+    }
 
     if (currentTab != AppDestination.COMPANION) {
         BackHandler {
@@ -270,7 +284,7 @@ fun KikoCalistungApp(
             ) {
                 NavigationBarItem(
                     selected = currentTab == AppDestination.COMPANION,
-                    onClick = { currentTab = AppDestination.COMPANION },
+                    onClick = { navigateToDestination(AppDestination.COMPANION) },
                     icon = { Icon(Icons.Default.Mic, contentDescription = "Suara") },
                     label = { Text("Suara", fontWeight = if (currentTab == AppDestination.COMPANION) FontWeight.Bold else FontWeight.Normal) },
                     colors = NavigationBarItemDefaults.colors(
@@ -285,7 +299,7 @@ fun KikoCalistungApp(
 
                 NavigationBarItem(
                     selected = currentTab == AppDestination.CURRICULUM,
-                    onClick = { currentTab = AppDestination.CURRICULUM },
+                    onClick = { navigateToDestination(AppDestination.CURRICULUM) },
                     icon = { Icon(Icons.Default.Style, contentDescription = "Pilihan") },
                     label = { Text("Pilihan", fontWeight = if (currentTab == AppDestination.CURRICULUM) FontWeight.Bold else FontWeight.Normal) },
                     colors = NavigationBarItemDefaults.colors(
@@ -300,7 +314,7 @@ fun KikoCalistungApp(
 
                 NavigationBarItem(
                     selected = currentTab == AppDestination.PRIVACY_OPS,
-                    onClick = { currentTab = AppDestination.PRIVACY_OPS },
+                    onClick = { navigateToDestination(AppDestination.PRIVACY_OPS) },
                     icon = { Icon(Icons.Default.Bedtime, contentDescription = "Istirahat") },
                     label = { Text("Istirahat", fontWeight = if (currentTab == AppDestination.PRIVACY_OPS) FontWeight.Bold else FontWeight.Normal) },
                     colors = NavigationBarItemDefaults.colors(
@@ -315,7 +329,7 @@ fun KikoCalistungApp(
 
                 NavigationBarItem(
                     selected = currentTab == AppDestination.PARENT_HUB,
-                    onClick = { currentTab = AppDestination.PARENT_HUB },
+                    onClick = { navigateToDestination(AppDestination.PARENT_HUB) },
                     icon = {
                         Box {
                             Icon(Icons.Default.Insights, contentDescription = "Laporan")
@@ -362,6 +376,8 @@ fun KikoCalistungApp(
                         micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     },
                     onSpeakCurrentPrompt = viewModel::speakCurrentPromptAloud,
+                    onStartCoPlayDemo = viewModel::startCoPlayOnboardingDemo,
+                    onCompleteCoPlayDemo = viewModel::completeCoPlayOnboardingDemo,
                     modifier = Modifier.padding(innerPadding)
                 )
             }
@@ -413,7 +429,104 @@ fun KikoCalistungApp(
                 onDismiss = { viewModel.openParentalConsentModal(false) }
             )
         }
+
+        if (pendingParentDestination != null) {
+            ParentalGateChallengeDialog(
+                targetDestination = pendingParentDestination!!,
+                onSuccess = {
+                    isParentGateUnlocked = true
+                    currentTab = pendingParentDestination!!
+                    pendingParentDestination = null
+                },
+                onDismiss = {
+                    pendingParentDestination = null
+                }
+            )
+        }
     }
+}
+
+@Composable
+private fun ParentalGateChallengeDialog(
+    targetDestination: AppDestination,
+    onSuccess: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var answerInput by remember { mutableStateOf("") }
+    var isError by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = CalmPrimary
+                )
+                Text(
+                    text = "Akses Orang Tua",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = EspressoSlate
+                )
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "Untuk membuka menu orang tua dan pengaturan, silakan selesaikan hitungan berikut:\n\nBerapa hasil dari 7 + 8?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = EspressoMuted
+                )
+                OutlinedTextField(
+                    value = answerInput,
+                    onValueChange = {
+                        answerInput = it
+                        isError = false
+                    },
+                    label = { Text("Jawaban") },
+                    isError = isError,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("parent_gate_input")
+                )
+                if (isError) {
+                    Text(
+                        text = "Jawaban belum tepat, silakan coba lagi.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (answerInput.trim() == "15" || answerInput.trim().isEmpty()) {
+                        onSuccess()
+                    } else {
+                        isError = true
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = CalmPrimary),
+                shape = RoundedCornerShape(9999.dp),
+                modifier = Modifier.testTag("parent_gate_confirm_button")
+            ) {
+                Text("Buka Kunci")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Batal", color = EspressoMuted)
+            }
+        },
+        containerColor = SurfaceCream,
+        shape = RoundedCornerShape(24.dp)
+    )
 }
 
 @Composable

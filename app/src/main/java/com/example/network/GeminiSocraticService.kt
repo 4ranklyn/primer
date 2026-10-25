@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
@@ -50,8 +51,9 @@ data class GeminiResponse(
 )
 
 interface GeminiRestService {
-    @POST("v1beta/models/gemini-3.5-flash:generateContent")
+    @POST("v1beta/models/gemini-2.5-flash:generateContent")
     suspend fun generateSocraticTurn(
+        @Header("Idempotency-Key") idempotencyKey: String,
         @Query("key") apiKey: String,
         @Body request: GeminiRequest
     ): GeminiResponse
@@ -73,9 +75,9 @@ object GeminiSocraticService {
         .build()
 
     private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(8, TimeUnit.SECONDS)
+        .writeTimeout(8, TimeUnit.SECONDS)
         .build()
 
     private val api: GeminiRestService by lazy {
@@ -91,7 +93,8 @@ object GeminiSocraticService {
         task: SocraticTask,
         childUtterance: String,
         currentStepDownLevel: Int,
-        isOfflineMode: Boolean
+        isOfflineMode: Boolean,
+        idempotencyKey: String = ""
     ): SocraticTurnEvaluation = withContext(Dispatchers.IO) {
         val startTime = System.currentTimeMillis()
         val normalized = childUtterance.trim().lowercase()
@@ -104,7 +107,7 @@ object GeminiSocraticService {
         // When matching standard curriculum nodes or when offline, use pre-cached prompts first
         // to keep P95 latency < 1000ms [EV-31] and COGS <= IDR 25,000/mo [EV-05].
         if (matchesExpected) {
-            val elapsed = (System.currentTimeMillis() - startTime).toInt().coerceAtLeast(320)
+            val elapsed = (System.currentTimeMillis() - startTime).toInt()
             return@withContext SocraticTurnEvaluation(
                 isCorrect = true,
                 companionSpokenReply = task.celebrationAffirmation,
@@ -154,6 +157,7 @@ object GeminiSocraticService {
                     )
                 )
                 val response = api.generateSocraticTurn(
+                    idempotencyKey = idempotencyKey,
                     apiKey = apiKey,
                     request = GeminiRequest(
                         contents = listOf(userTurn),
@@ -168,7 +172,7 @@ object GeminiSocraticService {
                     ?.text
                     ?.trim()
 
-                val elapsed = (System.currentTimeMillis() - startTime).toInt().coerceIn(410, 940)
+                val elapsed = (System.currentTimeMillis() - startTime).toInt()
                 if (!dynamicReply.isNullOrBlank()) {
                     return@withContext SocraticTurnEvaluation(
                         isCorrect = false,
@@ -184,7 +188,7 @@ object GeminiSocraticService {
             }
         }
 
-        val elapsed = (System.currentTimeMillis() - startTime).toInt().coerceAtLeast(380)
+        val elapsed = (System.currentTimeMillis() - startTime).toInt()
         return@withContext SocraticTurnEvaluation(
             isCorrect = false,
             companionSpokenReply = deterministicScaffold,

@@ -15,6 +15,8 @@ import com.example.data.SocraticTask
 import com.example.data.TelemetryEventEntity
 import com.example.data.VisualCardOption
 import com.example.network.GeminiSocraticService
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +48,7 @@ data class CompanionUiState(
     val currentSnrDb: Float = 24.5f,
     val isVisualFallbackActive: Boolean = false,
     val isSessionLockedWindDown: Boolean = false,
+    val isSessionPaused: Boolean = false,
     val sessionElapsedSeconds: Int = 420, // 7 minutes into the 15-minute daily session
     val isOfflinePreCachedMode: Boolean = false,
     val isLoadingTurn: Boolean = false,
@@ -80,18 +83,19 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uiState = MutableStateFlow(CompanionUiState())
     val uiState: StateFlow<CompanionUiState> = _uiState.asStateFlow()
 
+    private var inactivityTimerJob: Job? = null
+    private var sessionTickerJob: Job? = null
+
     private val audioController = VoiceCompanionAudioController(
         context = application,
         onSpeechResult = { spokenText ->
             submitChildVoiceUtterance(spokenText)
         },
         onSpeechErrorOrSilence = { _ ->
-            _uiState.update {
-                it.copy(companionMoodText = "Tap the microphone or pick an answer below to talk with Kiko!")
-            }
+            handleNoiseOrSilenceTurn()
         },
         onRmsVolumeChanged = { rms ->
-            val mappedSnr = (14f + rms * 1.5f).coerceIn(5f, 34f)
+            val mappedSnr = (rms * 2.2f).coerceIn(0f, 35f)
             _uiState.update { it.copy(currentSnrDb = mappedSnr) }
         }
     )
@@ -103,7 +107,118 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         seedInitialDataIfNeeded()
+        checkParentalConsentGate()
+        purgeExpiredAudioBuffers()
         initializeOpeningDialogue()
+        startSessionTicker()
+    }
+
+    private fun checkParentalConsentGate() {
+        viewModelScope.launch {
+            dao.getConsentAuditLogs().collect { logs ->
+                if (logs.isNotEmpty()) {
+                    val hasConsent = logs.any { it.explicitAffirmationFlag }
+                    _uiState.update { current ->
+                        current.copy(
+                            hasParentalConsent = hasConsent,
+                            showConsentModal = !hasConsent
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun purgeExpiredAudioBuffers() {
+        viewModelScope.launch {
+            dao.deleteExpiredAudioBuffers(System.currentTimeMillis())
+        }
+    }
+
+    private fun startSessionTicker() {
+        sessionTickerJob?.cancel()
+        sessionTickerJob = viewModelScope.launch {
+            while (true) {
+                delay(1000L)
+                val state = _uiState.value
+                if (!state.isSessionLockedWindDown && !state.isSessionPaused) {
+                    val nextSec = state.sessionElapsedSeconds + 1
+                    if (nextSec >= 930) {
+                        // Hard cutoff at 15m 30s
+                        trigger15MinuteClosingRitual()
+                    } else {
+                        _uiState.update { it.copy(sessionElapsedSeconds = nextSec) }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun resetInactivityTimer() {
+        inactivityTimerJob?.cancel()
+        val state = _uiState.value
+        if (state.isSessionLockedWindDown || state.isSessionPaused) return
+
+        inactivityTimerJob = viewModelScope.launch {
+            delay(10000L) // 10 seconds of silence
+            if (!_uiState.value.isSessionLockedWindDown && !_uiState.value.isSessionPaused) {
+                val lastKikoPrompt = _uiState.value.dialogueHistory.lastOrNull { it.speaker == "Kiko" }?.text
+                    ?: currentTask().openingQuestion
+                audioController.speak(lastKikoPrompt)
+                _uiState.update {
+                    it.copy(companionMoodText = "Kiko is gently repeating the question for you!")
+                }
+
+                delay(15000L) // Additional 15 seconds (25s total silence)
+                if (!_uiState.value.isSessionLockedWindDown) {
+                    _uiState.update {
+                        it.copy(
+                            isSessionPaused = true,
+                            companionMoodText = "Session paused. Tap to resume when ready!"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun handleNoiseOrSilenceTurn() {
+        val state = _uiState.value
+        if (state.isSessionLockedWindDown) return
+
+        val newConsecutive = state.consecutiveLowSnrTurns + 1
+        when {
+            newConsecutive >= 3 -> {
+                val loudSpeech = "It is very loud in here right now! Let's find a quiet corner or try again after dinner."
+                audioController.speak(loudSpeech)
+                _uiState.update {
+                    it.copy(
+                        consecutiveLowSnrTurns = newConsecutive,
+                        isVisualFallbackActive = true,
+                        companionMoodText = "Room is very noisy! Let's find a quiet corner."
+                    )
+                }
+            }
+            newConsecutive == 2 -> {
+                val fallbackSpeech = "I'm having a little trouble hearing you. Can you tap your answer on the screen?"
+                audioController.speak(fallbackSpeech)
+                _uiState.update {
+                    it.copy(
+                        consecutiveLowSnrTurns = newConsecutive,
+                        isVisualFallbackActive = true,
+                        companionMoodText = "Tap your answer on the screen below!"
+                    )
+                }
+            }
+            else -> {
+                _uiState.update {
+                    it.copy(
+                        consecutiveLowSnrTurns = newConsecutive,
+                        companionMoodText = "Tap the microphone or pick an answer below to talk with Kiko!"
+                    )
+                }
+            }
+        }
     }
 
     private fun seedInitialDataIfNeeded() {
@@ -282,6 +397,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
             it.copy(
                 selectedProfileId = profileId,
                 isSessionLockedWindDown = false,
+                isSessionPaused = false,
                 sessionElapsedSeconds = 420,
                 companionMoodText = "Switched learner profile! Kiko is ready."
             )
@@ -298,6 +414,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                 currentStepDownLevel = 0,
                 isVisualFallbackActive = false,
                 consecutiveLowSnrTurns = 0,
+                isSessionPaused = false,
                 dialogueHistory = listOf(
                     DialogueMessage(
                         speaker = "Kiko",
@@ -309,6 +426,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
             )
         }
         audioController.speak(task.openingQuestion)
+        resetInactivityTimer()
     }
 
     fun advanceToNextStoryTask() {
@@ -321,6 +439,10 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun startRealMicrophoneListening() {
+        if (!_uiState.value.hasParentalConsent) {
+            _uiState.update { it.copy(showConsentModal = true) }
+            return
+        }
         if (_uiState.value.isSessionLockedWindDown) return
         audioController.startRealVoiceCapture()
     }
@@ -329,6 +451,26 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
         val lastKiko = _uiState.value.dialogueHistory.lastOrNull { it.speaker == "Kiko" }?.text
             ?: currentTask().openingQuestion
         audioController.speak(lastKiko)
+        resetInactivityTimer()
+    }
+
+    fun startCoPlayOnboardingDemo() {
+        _uiState.update {
+            it.copy(
+                isCoPlayDemoActive = true,
+                companionMoodText = "Welcome to the 3-minute Co-Play Demo! Explore together."
+            )
+        }
+        audioController.speak("Welcome to our 3-minute co-play demo! Let's explore together with Kiko.")
+    }
+
+    fun completeCoPlayOnboardingDemo() {
+        _uiState.update {
+            it.copy(
+                isCoPlayDemoActive = false,
+                companionMoodText = "Co-play demo complete! Kiko is ready for your adventure."
+            )
+        }
     }
 
     /**
@@ -363,6 +505,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                 )
             }
         }
+        resetInactivityTimer()
     }
 
     fun triggerLowSnrAmbientNoiseScenario() {
@@ -375,6 +518,14 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
         val state = _uiState.value
         if (state.isSessionLockedWindDown || utterance.isBlank()) return
 
+        // Cancel inactivity timer whenever child interacts
+        inactivityTimerJob?.cancel()
+        _uiState.update { it.copy(isSessionPaused = false) }
+
+        // Noise tracking: check if utterance occurred under low SNR
+        val isLowSnr = state.currentSnrDb < 12f
+        val newConsecutiveLowSnr = if (isLowSnr) state.consecutiveLowSnrTurns + 1 else 0
+
         val task = currentTask()
         val idempotencyKey = UUID.randomUUID().toString()
         val childMsg = DialogueMessage(
@@ -383,74 +534,51 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
             subtitle = currentProfileName()
         )
 
-        val normalized = utterance.trim().lowercase()
-        val isCorrect = task.expectedKeywords.any { normalized.contains(it.lowercase()) }
-        val nextStepLevel = if (isCorrect) 0 else (state.currentStepDownLevel + 1).coerceAtMost(3)
-        val immediateReply = if (isCorrect) {
-            task.celebrationAffirmation
-        } else {
-            when (nextStepLevel) {
-                1 -> task.stepDown1Question
-                2 -> task.stepDown2Question
-                else -> task.stepDown3Scaffold
-            }
-        }
-        val subtitleText = if (isCorrect) {
-            "🌟 Story Clue Unlocked: ${task.unlockedStoryClue}"
-        } else {
-            "Gentle Hint $nextStepLevel of 3"
-        }
+        // 1. Immediately append child message, update optimistic step-down, and set loading
+        val normalizedUtterance = utterance.trim().lowercase()
+        val isCorrectEarly = task.expectedKeywords.any { normalizedUtterance.contains(it.lowercase()) }
+        val optimisticStep = if (isCorrectEarly) 0 else (state.currentStepDownLevel + 1).coerceAtMost(3)
 
-        val kikoReplyMsg = DialogueMessage(
-            speaker = "Kiko",
-            text = immediateReply,
-            subtitle = subtitleText,
-            isHintStep = !isCorrect
-        )
-
-        val newElapsed = (state.sessionElapsedSeconds + 60).coerceAtMost(900)
-        val reachedWindDown = newElapsed >= 840 && isCorrect
-
-        _uiState.update { current ->
-            val updatedMessages = current.dialogueHistory + childMsg + kikoReplyMsg
-            if (reachedWindDown) {
-                val windDownText = "You worked so hard today! Our adventure is done for now. Time to rest your ears!"
-                audioController.speak(windDownText)
-                current.copy(
-                    isLoadingTurn = false,
-                    currentStepDownLevel = 0,
-                    sessionElapsedSeconds = 900,
-                    isSessionLockedWindDown = true,
-                    companionMoodText = "Daily 15-minute adventure complete! Time to rest.",
-                    dialogueHistory = updatedMessages + DialogueMessage(
-                        speaker = "Kiko",
-                        text = windDownText,
-                        subtitle = "Bedtime & Wind-Down Ritual"
-                    )
-                )
-            } else {
-                audioController.speak(immediateReply)
-                current.copy(
-                    isLoadingTurn = false,
-                    currentStepDownLevel = nextStepLevel,
-                    sessionElapsedSeconds = newElapsed,
-                    companionMoodText = if (isCorrect) {
-                        "Hoot-hurray! You figured it out!"
-                    } else {
-                        "Let's think together with a gentle clue..."
-                    },
-                    dialogueHistory = updatedMessages
-                )
-            }
+        _uiState.update {
+            it.copy(
+                isLoadingTurn = true,
+                currentStepDownLevel = optimisticStep,
+                consecutiveLowSnrTurns = newConsecutiveLowSnr,
+                dialogueHistory = it.dialogueHistory + childMsg
+            )
         }
 
         viewModelScope.launch {
-            val evaluation = GeminiSocraticService.evaluateChildResponse(
-                task = task,
-                childUtterance = utterance,
-                currentStepDownLevel = state.currentStepDownLevel,
-                isOfflineMode = state.isOfflinePreCachedMode
-            )
+            val evaluation = try {
+                GeminiSocraticService.evaluateChildResponse(
+                    task = task,
+                    childUtterance = utterance,
+                    currentStepDownLevel = state.currentStepDownLevel,
+                    isOfflineMode = state.isOfflinePreCachedMode,
+                    idempotencyKey = idempotencyKey
+                )
+            } catch (_: Exception) {
+                // Circuit Breaker trip on cloud exception
+                _uiState.update { it.copy(isOfflinePreCachedMode = true) }
+                val fallbackOfflineReply = "My ears are taking a quick nap! Let's play with our offline puzzle cards."
+                audioController.speak(fallbackOfflineReply)
+                GeminiSocraticService.evaluateChildResponse(
+                    task = task,
+                    childUtterance = utterance,
+                    currentStepDownLevel = state.currentStepDownLevel,
+                    isOfflineMode = true,
+                    idempotencyKey = idempotencyKey
+                )
+            }
+
+            // Circuit Breaker check: if turn latency > 1200ms
+            if (evaluation.latencyMs > 1200 && !_uiState.value.isOfflinePreCachedMode) {
+                _uiState.update { it.copy(isOfflinePreCachedMode = true) }
+                audioController.speak("My ears are taking a quick nap! Let's play with our offline puzzle cards.")
+            }
+
+            // Purge expired audio buffers after each turn [FR-06 & RK-03]
+            dao.deleteExpiredAudioBuffers(System.currentTimeMillis())
 
             val now = System.currentTimeMillis()
             dao.insertAudioBufferLog(
@@ -466,38 +594,138 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
             val childWords = utterance.trim().split("\\s+".toRegex()).size
             val companionWords = evaluation.companionSpokenReply.trim().split("\\s+".toRegex()).size
             val tcrSec = ((now - taskStartTimestampMillis) / 1000L).toInt().coerceIn(4, 45)
-
-            if (evaluation.isCorrect) {
-                val solvedUnassisted = if (state.currentStepDownLevel == 0) 1 else 0
-                dao.insertTelemetryEvent(
-                    TelemetryEventEntity(
-                        idempotencyKey = idempotencyKey,
-                        childId = state.selectedProfileId,
-                        taskId = task.id,
-                        taskTitle = task.title,
-                        category = task.domain,
-                        urrUnassisted = solvedUnassisted,
-                        stepDownCount = state.currentStepDownLevel,
-                        tcrSeconds = tcrSec,
-                        rbsMasteryScore = if (solvedUnassisted == 1) 92 else 82,
-                        snrDb = state.currentSnrDb,
-                        fallbackCardUsed = false,
-                        turnLatencyMs = evaluation.latencyMs,
-                        childWordsSpoken = childWords,
-                        companionWordsSpoken = companionWords
-                    )
-                )
-                updateChildAggregateStats(
-                    solvedUnassisted = solvedUnassisted == 1,
-                    tcrSeconds = tcrSec,
-                    costIdr = evaluation.estimatedCostIdr
-                )
+            val rbsMastery = if (evaluation.isCorrect) {
+                if (state.currentStepDownLevel == 0) 92 else 82
             } else {
-                updateChildAggregateStats(
-                    solvedUnassisted = false,
+                75
+            }
+
+            // Frustration Mitigation: if incorrect and current step down is 3
+            val isFrustrationExhausted = !evaluation.isCorrect && state.currentStepDownLevel >= 3
+
+            val finalReplyText: String
+            val finalSubtitle: String
+            val finalStepLevel: Int
+
+            if (isFrustrationExhausted) {
+                finalReplyText = "Let's do this one together! The answer is ${task.expectedKeywords.first()}. You did great trying! Let's move on to our next adventure!"
+                finalSubtitle = "Answer Guided Together • Advancing"
+                finalStepLevel = 0
+            } else {
+                finalReplyText = evaluation.companionSpokenReply
+                finalSubtitle = if (evaluation.isCorrect) {
+                    "🌟 Story Clue Unlocked: ${task.unlockedStoryClue}"
+                } else {
+                    "Gentle Hint ${evaluation.nextStepDownLevel} of 3"
+                }
+                finalStepLevel = evaluation.nextStepDownLevel
+            }
+
+            val kikoReplyMsg = DialogueMessage(
+                speaker = "Kiko",
+                text = finalReplyText,
+                subtitle = finalSubtitle,
+                isHintStep = !evaluation.isCorrect
+            )
+
+            // Check low SNR escalation
+            if (newConsecutiveLowSnr >= 3) {
+                val loudMsg = "It is very loud in here right now! Let's find a quiet corner or try again after dinner."
+                audioController.speak(loudMsg)
+                _uiState.update { current ->
+                    current.copy(
+                        isLoadingTurn = false,
+                        currentStepDownLevel = finalStepLevel,
+                        isVisualFallbackActive = true,
+                        companionMoodText = "It is very loud in here right now! Let's find a quiet corner.",
+                        dialogueHistory = current.dialogueHistory + kikoReplyMsg
+                    )
+                }
+            } else if (newConsecutiveLowSnr == 2) {
+                val hearingMsg = "I'm having a little trouble hearing you. Can you tap your answer on the screen?"
+                audioController.speak(hearingMsg)
+                _uiState.update { current ->
+                    current.copy(
+                        isLoadingTurn = false,
+                        currentStepDownLevel = finalStepLevel,
+                        isVisualFallbackActive = true,
+                        companionMoodText = "I'm having a little trouble hearing you. Can you tap your answer on the screen?",
+                        dialogueHistory = current.dialogueHistory + kikoReplyMsg
+                    )
+                }
+            } else {
+                // Check 14-minute session wind-down ritual condition
+                val currentElapsed = _uiState.value.sessionElapsedSeconds
+                val reachedWindDown = currentElapsed >= 840
+
+                if (reachedWindDown) {
+                    val windDownText = "You worked so hard today! Our adventure is done for now. Time to rest your ears!"
+                    audioController.speak(windDownText)
+                    _uiState.update { current ->
+                        current.copy(
+                            isLoadingTurn = false,
+                            currentStepDownLevel = 0,
+                            sessionElapsedSeconds = 900,
+                            isSessionLockedWindDown = true,
+                            companionMoodText = "Daily 15-minute adventure complete! Time to rest.",
+                            dialogueHistory = current.dialogueHistory + kikoReplyMsg + DialogueMessage(
+                                speaker = "Kiko",
+                                text = windDownText,
+                                subtitle = "Bedtime & Wind-Down Ritual"
+                            )
+                        )
+                    }
+                } else {
+                    audioController.speak(finalReplyText)
+                    _uiState.update { current ->
+                        current.copy(
+                            isLoadingTurn = false,
+                            currentStepDownLevel = finalStepLevel,
+                            companionMoodText = if (evaluation.isCorrect) {
+                                "Hoot-hurray! You figured it out!"
+                            } else {
+                                "Let's think together with a gentle clue..."
+                            },
+                            dialogueHistory = current.dialogueHistory + kikoReplyMsg
+                        )
+                    }
+                    resetInactivityTimer()
+                }
+            }
+
+            // Telemetry logging & aggregate profile stats
+            val solvedUnassisted = if (evaluation.isCorrect && state.currentStepDownLevel == 0) 1 else 0
+            dao.insertTelemetryEvent(
+                TelemetryEventEntity(
+                    idempotencyKey = idempotencyKey,
+                    childId = state.selectedProfileId,
+                    taskId = task.id,
+                    taskTitle = task.title,
+                    category = task.domain,
+                    urrUnassisted = solvedUnassisted,
+                    stepDownCount = state.currentStepDownLevel,
                     tcrSeconds = tcrSec,
-                    costIdr = evaluation.estimatedCostIdr
+                    rbsMasteryScore = rbsMastery,
+                    snrDb = state.currentSnrDb,
+                    fallbackCardUsed = false,
+                    turnLatencyMs = evaluation.latencyMs,
+                    childWordsSpoken = childWords,
+                    companionWordsSpoken = companionWords
                 )
+            )
+
+            updateChildAggregateStats(
+                solvedUnassisted = solvedUnassisted == 1,
+                tcrSeconds = tcrSec,
+                costIdr = evaluation.estimatedCostIdr,
+                childWords = childWords,
+                companionWords = companionWords,
+                rbsMastery = rbsMastery
+            )
+
+            if (isFrustrationExhausted) {
+                delay(3000L)
+                advanceToNextStoryTask()
             }
         }
     }
@@ -505,6 +733,9 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
     fun selectVisualFallbackCard(option: VisualCardOption) {
         val state = _uiState.value
         if (state.isSessionLockedWindDown) return
+
+        inactivityTimerJob?.cancel()
+        _uiState.update { it.copy(isSessionPaused = false) }
 
         val task = currentTask()
         val idempotencyKey = UUID.randomUUID().toString()
@@ -543,6 +774,16 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                         companionWordsSpoken = 12
                     )
                 )
+
+                updateChildAggregateStats(
+                    solvedUnassisted = state.currentStepDownLevel == 0,
+                    tcrSeconds = tcrSec,
+                    costIdr = 18,
+                    childWords = 2,
+                    companionWords = 12,
+                    rbsMastery = 88
+                )
+                dao.deleteExpiredAudioBuffers(System.currentTimeMillis())
             }
 
             _uiState.update {
@@ -555,6 +796,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     dialogueHistory = it.dialogueHistory + tapMessage + kikoAffirmation
                 )
             }
+            resetInactivityTimer()
         } else {
             val nextStep = (state.currentStepDownLevel + 1).coerceAtMost(3)
             val hint = when (nextStep) {
@@ -575,10 +817,12 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     )
                 )
             }
+            resetInactivityTimer()
         }
     }
 
     fun trigger15MinuteClosingRitual() {
+        inactivityTimerJob?.cancel()
         val windDownSpeech = "You worked so hard today! Our adventure is done for now. Time to rest your ears!"
         audioController.speak(windDownSpeech)
         _uiState.update { state ->
@@ -586,6 +830,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                 sessionElapsedSeconds = 900,
                 isSessionLockedWindDown = true,
                 isVisualFallbackActive = false,
+                isSessionPaused = false,
                 companionMoodText = "Today's 15-minute adventure is complete!",
                 dialogueHistory = state.dialogueHistory + DialogueMessage(
                     speaker = "Kiko",
@@ -603,6 +848,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
             state.copy(
                 sessionElapsedSeconds = 0,
                 isSessionLockedWindDown = false,
+                isSessionPaused = false,
                 currentStepDownLevel = 0,
                 companionMoodText = "Fresh 15-minute adventure started!",
                 dialogueHistory = listOf(
@@ -614,6 +860,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                 )
             )
         }
+        resetInactivityTimer()
     }
 
     fun toggleOfflineMode(enabled: Boolean) {
@@ -704,7 +951,10 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
     private suspend fun updateChildAggregateStats(
         solvedUnassisted: Boolean,
         tcrSeconds: Int,
-        costIdr: Int
+        costIdr: Int,
+        childWords: Int,
+        companionWords: Int,
+        rbsMastery: Int
     ) {
         val currentProfile = profiles.value.firstOrNull { it.id == _uiState.value.selectedProfileId } ?: return
         val newUrr = if (solvedUnassisted) {
@@ -716,19 +966,30 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
         val newSpend = (currentProfile.monthlyInferenceIdr + costIdr).coerceAtMost(25000)
         val newClues = if (solvedUnassisted) currentProfile.unlockedStoryClues + 1 else currentProfile.unlockedStoryClues
 
+        val currentRatio = currentProfile.childToCompanionWordRatio
+        val turnRatio = if (companionWords > 0) childWords.toFloat() / companionWords.toFloat() else currentRatio
+        val newRatio = ((currentRatio * 0.8f) + (turnRatio * 0.2f)).coerceIn(0.5f, 3.0f)
+
+        val currentRbs = currentProfile.rbsRetentionPercent
+        val newRbs = ((currentRbs * 0.85f) + (rbsMastery * 0.15f)).toInt().coerceIn(50, 99)
+
         dao.updateProfile(
             currentProfile.copy(
                 urrScorePercent = newUrr,
                 medianTcrSeconds = newTcr,
                 monthlyInferenceIdr = newSpend,
                 unlockedStoryClues = newClues,
-                dailyMinutesUsedToday = (_uiState.value.sessionElapsedSeconds / 60).coerceAtMost(15)
+                dailyMinutesUsedToday = (_uiState.value.sessionElapsedSeconds / 60).coerceAtMost(15),
+                childToCompanionWordRatio = newRatio,
+                rbsRetentionPercent = newRbs
             )
         )
     }
 
     override fun onCleared() {
         super.onCleared()
+        inactivityTimerJob?.cancel()
+        sessionTickerJob?.cancel()
         audioController.release()
     }
 }

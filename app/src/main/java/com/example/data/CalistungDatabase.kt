@@ -140,6 +140,9 @@ interface CalistungDao {
     @Query("DELETE FROM audio_buffer_logs")
     suspend fun purgeAllAudioBuffers()
 
+    @Query("DELETE FROM audio_buffer_logs WHERE expiresAtMillis <= :currentMillis")
+    suspend fun deleteExpiredAudioBuffers(currentMillis: Long)
+
     @Query("SELECT * FROM parent_surveys ORDER BY id DESC")
     fun getParentSurveys(): Flow<List<ParentSurveyEntity>>
 
