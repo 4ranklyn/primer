@@ -1,7 +1,6 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,11 +30,8 @@ import androidx.compose.material.icons.filled.HelpCenter
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.TouchApp
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -54,16 +50,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.R
 import com.example.data.OfflineBundleEntity
-import com.example.data.SocraticCurriculumBank
 import com.example.ui.theme.CalmOutlineVariant
 import com.example.ui.theme.CalmPrimary
 import com.example.ui.theme.CalmPrimaryContainer
@@ -75,18 +67,11 @@ import com.example.ui.theme.CalmSurfaceContainerHigh
 import com.example.ui.theme.CalmSurfaceContainerLow
 import com.example.ui.theme.CalmSurfaceContainerLowest
 import com.example.ui.theme.CalmTertiary
-import com.example.ui.theme.CalmTertiaryFixed
-import com.example.ui.theme.CalmTertiaryFixedDim
 import com.example.ui.theme.CardBorderTactile
-import com.example.ui.theme.CardLipBottom
 import com.example.ui.theme.EspressoMuted
 import com.example.ui.theme.EspressoSlate
-import com.example.ui.theme.OnPrimaryFixed
 import com.example.ui.theme.OnSecondaryContainer
 import com.example.ui.theme.SurfaceAlmond
-import com.example.ui.theme.SurfaceCream
-import com.example.ui.theme.SurfaceSandSubtle
-import com.example.ui.theme.TerracottaPrimary
 
 @Composable
 fun CurriculumBundlesScreen(

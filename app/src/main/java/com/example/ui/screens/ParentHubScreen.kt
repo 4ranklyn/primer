@@ -61,7 +61,6 @@ import androidx.compose.ui.unit.sp
 import com.example.data.ChildProfileEntity
 import com.example.data.ParentSurveyEntity
 import com.example.data.TelemetryEventEntity
-import com.example.ui.theme.CalmOutlineVariant
 import com.example.ui.theme.CalmPrimary
 import com.example.ui.theme.CalmPrimaryFixed
 import com.example.ui.theme.CalmSecondary
@@ -80,9 +79,6 @@ import com.example.ui.theme.EspressoSlate
 import com.example.ui.theme.MetricTabularLg
 import com.example.ui.theme.OnSecondaryContainer
 import com.example.ui.theme.SurfaceAlmond
-import com.example.ui.theme.SurfaceCream
-import com.example.ui.theme.SurfaceSandSubtle
-import com.example.ui.theme.TerracottaPrimary
 
 @Composable
 fun ParentHubScreen(

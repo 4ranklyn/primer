@@ -62,11 +62,9 @@ import com.example.ui.theme.CalmPrimary
 import com.example.ui.theme.CalmPrimaryContainer
 import com.example.ui.theme.CalmSecondary
 import com.example.ui.theme.CalmSecondaryContainer
-import com.example.ui.theme.CalmSurfaceContainer
 import com.example.ui.theme.CalmSurfaceContainerHigh
 import com.example.ui.theme.CalmSurfaceContainerLow
 import com.example.ui.theme.CalmSurfaceContainerLowest
-import com.example.ui.theme.CalmTertiary
 import com.example.ui.theme.CardBorderTactile
 import com.example.ui.theme.EspressoMuted
 import com.example.ui.theme.EspressoSlate

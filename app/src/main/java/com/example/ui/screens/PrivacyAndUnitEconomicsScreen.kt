@@ -1,6 +1,5 @@
 package com.example.ui.screens
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -21,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
-import androidx.compose.material.icons.filled.CardMembership
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Lightbulb
@@ -31,14 +29,11 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.WbTwilight
-import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -57,17 +52,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.R
 import com.example.data.ChildProfileEntity
 import com.example.data.ConsentAuditEntity
 import com.example.data.EphemeralAudioBufferEntity
-import com.example.ui.theme.CalmOutlineVariant
 import com.example.ui.theme.CalmPrimary
 import com.example.ui.theme.CalmPrimaryContainer
 import com.example.ui.theme.CalmPrimaryFixed
@@ -77,7 +68,6 @@ import com.example.ui.theme.CalmSurfaceContainer
 import com.example.ui.theme.CalmSurfaceContainerHigh
 import com.example.ui.theme.CalmSurfaceContainerHighest
 import com.example.ui.theme.CalmSurfaceContainerLow
-import com.example.ui.theme.CalmSurfaceContainerLowest
 import com.example.ui.theme.CalmTertiary
 import com.example.ui.theme.CalmTertiaryContainer
 import com.example.ui.theme.CalmTertiaryFixed
@@ -85,13 +75,9 @@ import com.example.ui.theme.CardBorderTactile
 import com.example.ui.theme.EspressoMuted
 import com.example.ui.theme.EspressoSlate
 import com.example.ui.theme.MoonGlow
-import com.example.ui.theme.OnPrimaryFixed
 import com.example.ui.theme.OnSecondaryContainer
-import com.example.ui.theme.PrivacySageSoft
 import com.example.ui.theme.SurfaceAlmond
 import com.example.ui.theme.SurfaceCream
-import com.example.ui.theme.SurfaceSandSubtle
-import com.example.ui.theme.TerracottaPrimary
 import com.example.ui.theme.TwilightAmber
 import com.example.ui.theme.TwilightIndigo
 import kotlinx.coroutines.delay
