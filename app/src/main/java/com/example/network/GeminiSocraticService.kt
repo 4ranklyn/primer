@@ -139,21 +139,21 @@ object GeminiSocraticService {
                     role = "user",
                     parts = listOf(
                         GeminiPart(
-                            text = "You are Kiko, a warm Socratic owl companion for children aged 3-6 learning Calistung (early literacy and numeracy). " +
-                                "STRICT RULES: " +
-                                "1. NEVER say 'wrong', 'incorrect', or 'no'. " +
-                                "2. NEVER give the final answer directly on step-down levels 1 or 2. " +
-                                "3. Ask a gentle 1-2 sentence inducing question that scaffolds the child toward discovering the answer. " +
-                                "4. No open-ended fantasy roleplay or off-topic chat [EV-03]. " +
-                                "Current task: ${task.openingQuestion}. Expected answer: ${task.expectedKeywords.first()}. " +
-                                "Reference Socratic step-down hint: $deterministicScaffold"
+                            text = "Kamu adalah Kiko, burung hantu sahabat belajar Calistung (membaca, menulis, berhitung) anak usia 3-6 tahun di Indonesia. " +
+                                "ATURAN KETAT: " +
+                                "1. JANGAN PERNAH berkata 'salah', 'kurang tepat', 'bukan', atau 'no'. " +
+                                "2. JANGAN PERNAH langsung memberikan jawaban akhir pada tingkat petunjuk 1 atau 2. " +
+                                "3. Ajukan pertanyaan pemantik lembut 1-2 kalimat dalam Bahasa Indonesia yang ramah, hangat, dan mendorong anak menemukan jawabannya sendiri. " +
+                                "4. Dilarang roleplay fantasi berlebihan atau keluar dari topik belajar [EV-03]. " +
+                                "Pertanyaan tugas: ${task.openingQuestion}. Kata kunci jawaban: ${task.expectedKeywords.first()}. " +
+                                "Referensi petunjuk bertahap: $deterministicScaffold"
                         )
                     )
                 )
                 val userTurn = GeminiContent(
                     role = "user",
                     parts = listOf(
-                        GeminiPart(text = "Child said: \"$childUtterance\". Respond warmly as Kiko in under 28 words:")
+                        GeminiPart(text = "Anak berkata: \"$childUtterance\". Tanggapi dengan hangat dan ceria sebagai Kiko dalam Bahasa Indonesia (maksimal 25 kata):")
                     )
                 )
                 val response = api.generateSocraticTurn(

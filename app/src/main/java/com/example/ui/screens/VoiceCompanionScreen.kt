@@ -8,8 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,13 +24,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ManageSearch
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Hearing
-import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,9 +40,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,7 +58,6 @@ import com.example.R
 import com.example.data.ChildProfileEntity
 import com.example.data.SocraticTask
 import com.example.data.VisualCardOption
-import com.example.ui.theme.CalmOutlineVariant
 import com.example.ui.theme.CalmPrimary
 import com.example.ui.theme.CalmPrimaryContainer
 import com.example.ui.theme.CalmSecondary
@@ -76,17 +67,12 @@ import com.example.ui.theme.CalmSurfaceContainerHigh
 import com.example.ui.theme.CalmSurfaceContainerLow
 import com.example.ui.theme.CalmSurfaceContainerLowest
 import com.example.ui.theme.CalmTertiary
-import com.example.ui.theme.CalmTertiaryFixedDim
 import com.example.ui.theme.CardBorderTactile
-import com.example.ui.theme.CardLipBottom
-import com.example.ui.theme.DisplayChildLgMobile
 import com.example.ui.theme.EspressoMuted
 import com.example.ui.theme.EspressoSlate
 import com.example.ui.theme.MoonGlow
-import com.example.ui.theme.SurfaceAlmond
 import com.example.ui.theme.SurfaceCream
 import com.example.ui.theme.SurfaceSandSubtle
-import com.example.ui.theme.TerracottaPrimary
 import com.example.ui.theme.TwilightAmber
 import com.example.ui.theme.TwilightIndigo
 import com.example.viewmodel.CompanionUiState
@@ -112,19 +98,15 @@ fun VoiceCompanionScreen(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
-
     val remainingSeconds = (900 - uiState.sessionElapsedSeconds).coerceAtLeast(0)
     val remMin = remainingSeconds / 60
 
-    var showHintBadge by remember { mutableStateOf(false) }
-
-    // Pulsing aura animation for active listening/speaking
     val infiniteTransition = rememberInfiniteTransition(label = "kiko_aura")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 0.98f,
-        targetValue = if (isSpeaking || isListening) 1.14f else 1.05f,
+        targetValue = if (isSpeaking || isListening) 1.15f else 1.04f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isSpeaking || isListening) 700 else 2200),
+            animation = tween(durationMillis = if (isSpeaking || isListening) 650 else 2200),
             repeatMode = RepeatMode.Reverse
         ),
         label = "pulse_scale"
@@ -134,11 +116,12 @@ fun VoiceCompanionScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 20.dp, vertical = 12.dp)
             .testTag("kiko_character_stage"),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 3-Minute Co-Play Onboarding Guided Banner (PRD Section 8.2 & 12.1)
+        // 1. Guided Co-Play Banner (PRD Section 8.2)
         if (uiState.isCoPlayDemoActive) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = CalmPrimaryContainer),
@@ -152,28 +135,15 @@ fun VoiceCompanionScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(text = "🤝", fontSize = 24.sp)
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Mode Demo Co-Play (3 Menit)",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = EspressoSlate
-                            )
-                            Text(
-                                text = "Orang tua & anak mendengarkan dan menjawab bersama Kiko",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = EspressoMuted
-                            )
-                        }
-                    }
                     Text(
-                        text = "Dampingi anak Anda menjawab dengan suara lantang. Perhatikan bagaimana Kiko tidak pernah menyalahkan dan membimbing langkah demi langkah!",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = "🤝 Mode Demo Co-Play (3 Menit)",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = EspressoSlate
+                    )
+                    Text(
+                        text = "Dampingi anak menjawab lantang. Kiko membimbing langkah demi langkah tanpa menyalahkan!",
+                        style = MaterialTheme.typography.bodySmall,
                         color = EspressoSlate
                     )
                     Row(
@@ -191,67 +161,106 @@ fun VoiceCompanionScreen(
                 }
             }
         }
-        // 1. Session Status & Warm Motivation Badges
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+
+        // 2. Kiko Character Avatar
+        Box(
+            modifier = Modifier
+                .padding(top = 8.dp)
+                .size(170.dp),
+            contentAlignment = Alignment.Center
         ) {
+            Box(
+                modifier = Modifier
+                    .size(165.dp)
+                    .scale(pulseScale)
+                    .clip(CircleShape)
+                    .background(CalmSecondary.copy(alpha = if (isSpeaking || isListening) 0.35f else 0.12f))
+            )
+
             Surface(
-                color = CalmSurfaceContainerLow,
-                shape = RoundedCornerShape(9999.dp),
-                border = BorderStroke(1.dp, CardBorderTactile)
+                color = CalmSurfaceContainerHigh,
+                shape = CircleShape,
+                border = BorderStroke(4.dp, CalmSurfaceContainerLowest),
+                shadowElevation = 8.dp,
+                modifier = Modifier.size(140.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ManageSearch,
-                        contentDescription = null,
-                        tint = CalmTertiary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "Sisa $remMin Menit",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = EspressoSlate,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.img_companion_kiko_1791699428835),
+                    contentDescription = "Teman Belajar Kiko",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
             Surface(
-                color = CalmSurfaceContainerLow,
-                shape = RoundedCornerShape(9999.dp),
-                border = BorderStroke(1.dp, CardBorderTactile)
+                color = CalmSecondaryContainer,
+                shape = CircleShape,
+                border = BorderStroke(2.dp, Color.White),
+                shadowElevation = 3.dp,
+                modifier = Modifier
+                    .size(38.dp)
+                    .align(Alignment.BottomEnd)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
+                Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = null,
-                        tint = CalmTertiaryFixedDim,
-                        modifier = Modifier.size(19.dp)
-                    )
-                    Text(
-                        text = "3 Bintang",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = EspressoSlate,
-                        fontWeight = FontWeight.Bold
+                        imageVector = Icons.Default.Hearing,
+                        contentDescription = "Status Kiko",
+                        tint = CalmSecondary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
         }
 
-        // 2. Socratic Dialogue Bubble
+        // Status Mood Pill
+        Surface(
+            color = CalmSurfaceContainerLow,
+            shape = RoundedCornerShape(9999.dp),
+            border = BorderStroke(1.dp, CardBorderTactile)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalAlignment = Alignment.Bottom,
+                    modifier = Modifier.height(14.dp)
+                ) {
+                    val barHeights = if (isSpeaking || isListening) {
+                        listOf(0.5f, 1.0f, 0.7f, 0.4f)
+                    } else {
+                        listOf(0.3f, 0.5f, 0.3f, 0.2f)
+                    }
+                    barHeights.forEach { fraction ->
+                        Box(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .height((14 * fraction).dp)
+                                .clip(RoundedCornerShape(9999.dp))
+                                .background(CalmSecondary)
+                        )
+                    }
+                }
+
+                Text(
+                    text = when {
+                        isSpeaking -> "Kiko sedang berbicara..."
+                        isListening -> "Kiko mendengarkanmu..."
+                        else -> "Sisa $remMin menit hari ini"
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = EspressoSlate,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        // 3. Clear Socratic Question Card
         Card(
             colors = CardDefaults.cardColors(containerColor = CalmSurfaceContainerLowest),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(24.dp),
             border = BorderStroke(1.5.dp, CardBorderTactile),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
@@ -259,45 +268,37 @@ fun VoiceCompanionScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp),
+                    .padding(18.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "🍎",
-                        fontSize = 28.sp,
-                        modifier = Modifier.padding(top = 2.dp)
+                        text = if (uiState.currentStepDownLevel > 0) {
+                            "Ayo kita hitung bersama! Angka berapa yang datang setelah satu, dua, tiga? Let's count them together! What number comes after one, two, three?"
+                        } else {
+                            currentTask.openingQuestion
+                        },
+                        style = MaterialTheme.typography.titleLarge,
+                        color = EspressoSlate,
+                        fontWeight = FontWeight.ExtraBold,
+                        lineHeight = 26.sp
                     )
-                    Column {
-                        Text(
-                            text = if (uiState.currentStepDownLevel > 0) {
-                                "Let's count them together! What number comes after one, two, three?"
-                            } else {
-                                currentTask.openingQuestion
-                            },
-                            style = MaterialTheme.typography.titleLarge,
-                            color = EspressoSlate,
-                            fontWeight = FontWeight.ExtraBold,
-                            lineHeight = 24.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = if (uiState.currentStepDownLevel > 0) {
-                                "Step-Down Ladder: ${uiState.currentStepDownLevel} / 3 • Kiko menemanimu berhitung pelan-pelan!"
-                            } else {
-                                "Ayo kita hitung sama-sama!"
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (uiState.currentStepDownLevel > 0) CalmSecondary else EspressoMuted,
-                            fontWeight = if (uiState.currentStepDownLevel > 0) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (uiState.currentStepDownLevel > 0) {
+                            "Tangga Petunjuk: ${uiState.currentStepDownLevel} / 3 • Kiko membimbingmu pelan-pelan! Step-Down Ladder: ${uiState.currentStepDownLevel} / 3"
+                        } else {
+                            "Ayo jawab dengan suara lantang ya!"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (uiState.currentStepDownLevel > 0) CalmSecondary else EspressoMuted,
+                        fontWeight = if (uiState.currentStepDownLevel > 0) FontWeight.Bold else FontWeight.Normal
+                    )
                 }
+
+                Spacer(modifier = Modifier.width(12.dp))
 
                 Surface(
                     onClick = onSpeakCurrentPrompt,
@@ -305,7 +306,7 @@ fun VoiceCompanionScreen(
                     shape = CircleShape,
                     border = BorderStroke(1.dp, CardBorderTactile),
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(48.dp)
                         .testTag("replay_kiko_voice_button")
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -313,376 +314,65 @@ fun VoiceCompanionScreen(
                             imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                             contentDescription = "Ulangi Pertanyaan",
                             tint = CalmPrimary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        // 3. Central Living Companion Anchor (Kiko)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier.size(120.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // Outer pulsing aura
-                Box(
-                    modifier = Modifier
-                        .size(116.dp)
-                        .scale(pulseScale)
-                        .clip(CircleShape)
-                        .background(CalmSecondary.copy(alpha = if (isSpeaking || isListening) 0.30f else 0.12f))
-                )
-
-                // Companion circular frame
-                Surface(
-                    color = CalmSurfaceContainerHigh,
-                    shape = CircleShape,
-                    border = BorderStroke(3.dp, CalmSurfaceContainerLowest),
-                    shadowElevation = 6.dp,
-                    modifier = Modifier.size(96.dp)
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.img_companion_kiko_1791699428835),
-                        contentDescription = "Kiko the Owl Companion",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                // Mini state indicator pin
-                Surface(
-                    color = CalmSecondaryContainer,
-                    shape = CircleShape,
-                    border = BorderStroke(1.5.dp, Color.White),
-                    shadowElevation = 2.dp,
-                    modifier = Modifier
-                        .size(30.dp)
-                        .align(Alignment.BottomEnd)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Hearing,
-                            contentDescription = "Status Kiko",
-                            tint = CalmSecondary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        // Companion listening/speaking status pill & audio rhythm bars
-        Row(
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                color = CalmSurfaceContainerLow,
-                shape = RoundedCornerShape(9999.dp),
-                border = BorderStroke(1.dp, CardBorderTactile)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // 4 rhythm wave bars
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                        verticalAlignment = Alignment.Bottom,
-                        modifier = Modifier.height(14.dp)
-                    ) {
-                        val barHeights = if (isSpeaking || isListening) {
-                            listOf(0.6f, 1.0f, 0.75f, 0.45f)
-                        } else {
-                            listOf(0.4f, 0.6f, 0.4f, 0.3f)
-                        }
-                        barHeights.forEach { fraction ->
-                            Box(
-                                modifier = Modifier
-                                    .width(3.dp)
-                                    .height((14 * fraction).dp)
-                                    .clip(RoundedCornerShape(9999.dp))
-                                    .background(CalmSecondary)
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = when {
-                            isSpeaking -> "Kiko sedang berbicara..."
-                            isListening -> "Kiko lagi mendengarkan..."
-                            else -> "Kiko siap mendengarkan..."
-                        },
-                        style = MaterialTheme.typography.labelMedium,
-                        color = CalmSecondary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        }
-
-        // 4. Visual Montessori Challenge Zone (Apples Concrete Counter)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Group 1: 3 Red Apples
-            Card(
-                colors = CardDefaults.cardColors(containerColor = CalmSurfaceContainerLowest),
-                shape = RoundedCornerShape(18.dp),
-                border = BorderStroke(1.5.dp, CardBorderTactile),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                Column(
-                    modifier = Modifier.padding(10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(
-                        color = CalmSurfaceContainerLow,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(84.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(text = "🍎 🍎 🍎", fontSize = 24.sp)
-                        }
-                    }
-                    Surface(
-                        color = CalmSurfaceContainer,
-                        shape = RoundedCornerShape(9999.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(CalmPrimary)
-                            )
-                            Text(
-                                text = "3 di meja",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = EspressoSlate
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Group 2: 2 Green Apples
-            Card(
-                colors = CardDefaults.cardColors(containerColor = CalmSurfaceContainerLowest),
-                shape = RoundedCornerShape(18.dp),
-                border = BorderStroke(1.5.dp, CardBorderTactile),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                Column(
-                    modifier = Modifier.padding(10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(
-                        color = CalmSurfaceContainerLow,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(84.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(text = "🍏 🍏", fontSize = 24.sp)
-                        }
-                    }
-                    Surface(
-                        color = CalmSurfaceContainer,
-                        shape = RoundedCornerShape(9999.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(CalmSecondary)
-                            )
-                            Text(
-                                text = "2 di piring",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = EspressoSlate
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // 5. Primary Voice Control Cluster
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Left Pill: Dengar
-            Surface(
-                onClick = onSpeakCurrentPrompt,
-                color = CalmSurfaceContainer,
-                shape = RoundedCornerShape(9999.dp),
-                border = BorderStroke(1.5.dp, CardBorderTactile),
-                modifier = Modifier
-                    .height(56.dp)
-                    .padding(horizontal = 2.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                        contentDescription = "Dengar Contoh",
-                        tint = CalmPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "Dengar",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = EspressoSlate,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-            }
-
-            // Giant Dominant CTA: Bicara Sekarang
-            Surface(
-                onClick = onRequestMicAndListen,
-                color = if (isListening) CalmSecondary else CalmPrimary,
-                shape = RoundedCornerShape(9999.dp),
-                shadowElevation = 6.dp,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(76.dp)
-                    .testTag("request_mic_button")
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.22f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = "Bicara Sekarang",
-                            tint = Color.White,
                             modifier = Modifier.size(24.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(verticalArrangement = Arrangement.Center) {
-                        Text(
-                            text = if (isListening) "Mendengarkan" else "Bicara",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.White,
-                            fontWeight = FontWeight.ExtraBold,
-                            lineHeight = 18.sp
-                        )
-                        Text(
-                            text = if (isListening) "Katakan Jawabanmu" else "Sekarang",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontWeight = FontWeight.Bold,
-                            lineHeight = 16.sp
-                        )
-                    }
                 }
             }
+        }
 
-            // Right Pill: Petunjuk
-            Surface(
-                onClick = { showHintBadge = !showHintBadge },
-                color = CalmSurfaceContainer,
-                shape = RoundedCornerShape(9999.dp),
-                border = BorderStroke(1.5.dp, CardBorderTactile),
+        // 4. Large Dominant "Bicara Sekarang" Mic CTA
+        Surface(
+            onClick = onRequestMicAndListen,
+            color = if (isListening) CalmSecondary else CalmPrimary,
+            shape = RoundedCornerShape(9999.dp),
+            shadowElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(84.dp)
+                .testTag("request_mic_button")
+        ) {
+            Row(
                 modifier = Modifier
-                    .height(56.dp)
-                    .padding(horizontal = 2.dp)
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.22f)),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Lightbulb,
-                        contentDescription = "Beri Petunjuk",
-                        tint = CalmTertiary,
-                        modifier = Modifier.size(20.dp)
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Bicara Sekarang",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(verticalArrangement = Arrangement.Center) {
+                    Text(
+                        text = if (isListening) "Kiko Mendengarkan..." else "Tekan & Bicara",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 18.sp
                     )
                     Text(
-                        text = "Petunjuk",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = EspressoSlate,
-                        fontWeight = FontWeight.ExtraBold
+                        text = if (isListening) "Katakan jawabanmu sekarang" else "Sebutkan jawabanmu dengan lantang",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
         }
 
-        if (showHintBadge) {
-            Surface(
-                color = CalmSurfaceContainerLow,
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, CalmTertiary.copy(alpha = 0.4f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Lightbulb,
-                        contentDescription = null,
-                        tint = CalmTertiary
-                    )
-                    Text(
-                        text = "Petunjuk: Coba hitung 3 apel di meja, lalu tambahkan 2 apel di piring!",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = EspressoSlate
-                    )
-                }
-            }
-        }
-
-        // Fallback Cards if toggled or in low-SNR mode
+        // 5. Tactile Fallback Cards (Appears ONLY when SNR is low or explicitly needed)
         if (uiState.isVisualFallbackActive) {
             TactileFallbackChoiceSection(
                 task = currentTask,
@@ -690,86 +380,78 @@ fun VoiceCompanionScreen(
             )
         }
 
-        // Calm Closing Ritual Card if locked or triggered
+        // 6. Calm Closing Ritual Card (Appears after 15 minutes)
         if (uiState.isSessionLockedWindDown) {
             CalmClosingRitualCard(
                 onParentResetSession = onParentResetSession
             )
         }
 
-        // Pedagogical & Testing Affordance Row (Supports Robolectric CUJ Verification)
+        // 7. Hidden / Subtle Verification Row for Testing
         Surface(
             color = CalmSurfaceContainerLowest,
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, CardBorderTactile),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, CardBorderTactile.copy(alpha = 0.4f)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = "Aksi Simulasi Pendampingan",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = EspressoMuted
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                OutlinedButton(
+                    onClick = { onChildVoiceUtterance("Three") },
+                    shape = RoundedCornerShape(9999.dp),
+                    border = BorderStroke(0.5.dp, CardBorderTactile),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("simulate_wrong_answer_button")
                 ) {
-                    OutlinedButton(
-                        onClick = { onChildVoiceUtterance("Three") },
-                        shape = RoundedCornerShape(9999.dp),
-                        border = BorderStroke(1.dp, CardBorderTactile),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("simulate_wrong_answer_button")
-                    ) {
-                        Text("Jawab Tiga", fontSize = 11.sp, color = CalmPrimary)
-                    }
+                    Text("Jawab Tiga", fontSize = 10.sp, color = EspressoMuted)
+                }
 
-                    OutlinedButton(
-                        onClick = onToggleNoisyRoomCards,
-                        shape = RoundedCornerShape(9999.dp),
-                        border = BorderStroke(1.dp, CardBorderTactile),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("trigger_low_snr_button")
-                    ) {
-                        Text(
-                            text = if (uiState.isVisualFallbackActive) "Tutup Kartu" else "Kartu Pilihan",
-                            fontSize = 11.sp,
-                            color = CalmSecondary
-                        )
-                    }
+                OutlinedButton(
+                    onClick = onToggleNoisyRoomCards,
+                    shape = RoundedCornerShape(9999.dp),
+                    border = BorderStroke(0.5.dp, CardBorderTactile),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("trigger_low_snr_button")
+                ) {
+                    Text(
+                        text = if (uiState.isVisualFallbackActive) "Tutup Kartu" else "Kartu Pilihan",
+                        fontSize = 10.sp,
+                        color = EspressoMuted
+                    )
+                }
 
-                    OutlinedButton(
-                        onClick = onTriggerWindDownRitual,
-                        shape = RoundedCornerShape(9999.dp),
-                        border = BorderStroke(1.dp, CardBorderTactile),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("trigger_wind_down_button")
-                    ) {
-                        Text("Waktu Tidur", fontSize = 11.sp, color = CalmTertiary)
-                    }
+                OutlinedButton(
+                    onClick = onTriggerWindDownRitual,
+                    shape = RoundedCornerShape(9999.dp),
+                    border = BorderStroke(0.5.dp, CardBorderTactile),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("trigger_wind_down_button")
+                ) {
+                    Text("Waktu Tidur", fontSize = 10.sp, color = EspressoMuted)
+                }
 
-                    OutlinedButton(
-                        onClick = {
-                            if (uiState.isCoPlayDemoActive) onCompleteCoPlayDemo() else onStartCoPlayDemo()
-                        },
-                        shape = RoundedCornerShape(9999.dp),
-                        border = BorderStroke(1.dp, CardBorderTactile),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("trigger_co_play_demo_button")
-                    ) {
-                        Text(
-                            text = if (uiState.isCoPlayDemoActive) "Tutup Demo" else "Demo Co-Play",
-                            fontSize = 11.sp,
-                            color = EspressoSlate
-                        )
-                    }
+                OutlinedButton(
+                    onClick = {
+                        if (uiState.isCoPlayDemoActive) onCompleteCoPlayDemo() else onStartCoPlayDemo()
+                    },
+                    shape = RoundedCornerShape(9999.dp),
+                    border = BorderStroke(0.5.dp, CardBorderTactile),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("trigger_co_play_demo_button")
+                ) {
+                    Text(
+                        text = if (uiState.isCoPlayDemoActive) "Tutup Demo" else "Demo",
+                        fontSize = 10.sp,
+                        color = EspressoMuted
+                    )
                 }
             }
         }
@@ -777,7 +459,7 @@ fun VoiceCompanionScreen(
 }
 
 /**
- * Tactile Calistung Fallback Choice Tiles
+ * Tactile Fallback Cards (Noise / SNR Fallback)
  */
 @Composable
 private fun TactileFallbackChoiceSection(
@@ -935,7 +617,7 @@ fun CalmClosingRitualCard(
                 modifier = Modifier.testTag("parent_unlock_reset_button")
             ) {
                 Text(
-                    text = "Akses Orang Tua (Buka Kunci)",
+                    text = "Akses Orang Tua (Mulai Sesi Baru)",
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )

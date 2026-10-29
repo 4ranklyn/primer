@@ -16,7 +16,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -31,7 +33,6 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.AlertDialog
@@ -63,7 +64,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,15 +79,11 @@ import com.example.ui.theme.CalmSecondary
 import com.example.ui.theme.CalmSecondaryContainer
 import com.example.ui.theme.CalmSurfaceContainer
 import com.example.ui.theme.CalmTertiary
-import com.example.ui.theme.CardBorderTactile
 import com.example.ui.theme.EspressoMuted
 import com.example.ui.theme.EspressoSlate
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.OnSecondaryContainer
-import com.example.ui.theme.PrivacySageSoft
-import com.example.ui.theme.SurfaceAlmond
 import com.example.ui.theme.SurfaceCream
-import com.example.ui.theme.TerracottaPrimary
 import com.example.viewmodel.CalistungViewModel
 
 enum class AppDestination(val routeId: String, val labelRes: Int) {
@@ -200,7 +196,7 @@ fun KikoCalistungApp(
                                     shape = RoundedCornerShape(9999.dp)
                                 ) {
                                     Text(
-                                        text = "TEMAN BELAJAR",
+                                        text = "TEMAN SUARA",
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = OnSecondaryContainer,
@@ -477,7 +473,7 @@ private fun ParentalGateChallengeDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "Untuk membuka menu orang tua dan pengaturan, silakan selesaikan hitungan berikut:\n\nBerapa hasil dari 7 + 8?",
+                    text = "Berapa hasil dari 7 + 8?",
                     style = MaterialTheme.typography.bodyMedium,
                     color = EspressoMuted
                 )

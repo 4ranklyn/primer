@@ -39,7 +39,11 @@ class VoiceCompanionAudioController(
         try {
             tts = TextToSpeech(context.applicationContext) { status ->
                 if (status == TextToSpeech.SUCCESS) {
-                    tts?.language = Locale.US
+                    val idLocale = Locale("id", "ID")
+                    val result = tts?.setLanguage(idLocale)
+                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        tts?.language = Locale.getDefault()
+                    }
                     tts?.setPitch(1.12f) // Warm, friendly storybook companion pitch
                     tts?.setSpeechRate(0.92f) // Patient pace for ages 3-6 [EV-21]
                     tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
@@ -136,7 +140,9 @@ class VoiceCompanionAudioController(
 
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.US)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "id-ID")
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "id-ID")
+                putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, "id-ID")
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 2)
             }
             speechRecognizer?.startListening(intent)

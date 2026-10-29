@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Kiko Calistung</string>
-    <string name="companion_name">Kiko the Owl</string>
-    <string name="tagline">Daily Voice Learning Companion</string>
+    <string name="companion_name">Kiko Burung Hantu</string>
+    <string name="tagline">Teman Belajar Suara Harian Anak</string>
     <string name="nav_suara">Suara</string>
     <string name="nav_pilihan">Pilihan</string>
     <string name="nav_istirahat">Istirahat</string>
@@ -10,7 +10,7 @@
     <string name="nav_curriculum">Pilihan</string>
     <string name="nav_parent_hub">Laporan</string>
     <string name="nav_privacy_ops">Istirahat</string>
-    <string name="consent_notice_verbatim">We record temporary voice audio solely to converse with your child during active sessions. Raw audio recordings are deleted within 24 hours and are never used for advertising or model training.</string>
+    <string name="consent_notice_verbatim">Kami merekam audio suara sementara hanya untuk bercakap-cakap dengan anak Anda selama sesi aktif. Rekaman audio mentah dihapus otomatis dalam 24 jam dan tidak pernah digunakan untuk iklan atau pelatihan model kecerdasan buatan.</string>
     <string name="snr_fallback_speech">I\'m having a little trouble hearing you. Can you tap your answer on the screen?</string>
     <string name="wind_down_speech">You worked so hard today! Our adventure is done for now. Time to rest your ears!</string>
     <string name="offline_error_speech">My ears are taking a quick nap! Let\'s play with our offline puzzle cards.</string>

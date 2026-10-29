@@ -52,7 +52,7 @@ data class CompanionUiState(
     val sessionElapsedSeconds: Int = 420, // 7 minutes into the 15-minute daily session
     val isOfflinePreCachedMode: Boolean = false,
     val isLoadingTurn: Boolean = false,
-    val companionMoodText: String = "Kiko is ready to listen and play!",
+    val companionMoodText: String = "Kiko siap mendengarkan dan bermain!",
     val dialogueHistory: List<DialogueMessage> = emptyList(),
     val micPermissionGranted: Boolean = false
 )
@@ -166,7 +166,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     ?: currentTask().openingQuestion
                 audioController.speak(lastKikoPrompt)
                 _uiState.update {
-                    it.copy(companionMoodText = "Kiko is gently repeating the question for you!")
+                    it.copy(companionMoodText = "Kiko mengulang pertanyaannya pelan-pelan ya!")
                 }
 
                 delay(15000L) // Additional 15 seconds (25s total silence)
@@ -174,7 +174,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     _uiState.update {
                         it.copy(
                             isSessionPaused = true,
-                            companionMoodText = "Session paused. Tap to resume when ready!"
+                            companionMoodText = "Sesi dijeda. Sentuh layar saat siap lanjut ya!"
                         )
                     }
                 }
@@ -195,7 +195,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     it.copy(
                         consecutiveLowSnrTurns = newConsecutive,
                         isVisualFallbackActive = true,
-                        companionMoodText = "Room is very noisy! Let's find a quiet corner."
+                        companionMoodText = "Ruangan sangat bising! Cari tempat tenang yuk."
                     )
                 }
             }
@@ -206,7 +206,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     it.copy(
                         consecutiveLowSnrTurns = newConsecutive,
                         isVisualFallbackActive = true,
-                        companionMoodText = "Tap your answer on the screen below!"
+                        companionMoodText = "Sentuh pilihan jawabanmu di layar ya!"
                     )
                 }
             }
@@ -214,7 +214,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                 _uiState.update {
                     it.copy(
                         consecutiveLowSnrTurns = newConsecutive,
-                        companionMoodText = "Tap the microphone or pick an answer below to talk with Kiko!"
+                        companionMoodText = "Sentuh mikrofon atau pilih jawaban untuk mengobrol dengan Kiko!"
                     )
                 }
             }
@@ -229,7 +229,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     name = "Bima",
                     age = 5,
                     avatarEmoji = "🦉",
-                    subscriptionTier = "Family Standard Plan",
+                    subscriptionTier = "Paket Standar Keluarga",
                     dailyMinutesUsedToday = 7,
                     urrScorePercent = 76,
                     medianTcrSeconds = 13,
@@ -244,7 +244,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     name = "Alya",
                     age = 4,
                     avatarEmoji = "🦊",
-                    subscriptionTier = "Early Explorer Plan",
+                    subscriptionTier = "Paket Penjelajah Cilik",
                     dailyMinutesUsedToday = 5,
                     urrScorePercent = 70,
                     medianTcrSeconds = 15,
@@ -259,7 +259,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     name = "Raka",
                     age = 6,
                     avatarEmoji = "🐻",
-                    subscriptionTier = "Multi-Child Plus Plan",
+                    subscriptionTier = "Paket Multi-Anak Plus",
                     dailyMinutesUsedToday = 11,
                     urrScorePercent = 84,
                     medianTcrSeconds = 11,
@@ -275,9 +275,9 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
             val bundles = listOf(
                 OfflineBundleEntity(
                     bundleId = "BUNDLE-NUM-CORE",
-                    title = "Forest Numbers & Counting Stories",
-                    category = "Numbers & Counting • Ages 3–6",
-                    description = "Warm interactive counting stories, comparing quantities, and playful addition adventures with Kiko.",
+                    title = "Cerita Berhitung & Angka Hutan",
+                    category = "Berhitung & Angka • Usia 3–6",
+                    description = "Petualangan cerita berhitung interaktif yang hangat, membandingkan jumlah, dan penjumlahan ceria bersama Kiko.",
                     sizeMb = 14.2f,
                     promptCount = 48,
                     isDownloaded = true,
@@ -285,9 +285,9 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                 ),
                 OfflineBundleEntity(
                     bundleId = "BUNDLE-LIT-SYLLABLES",
-                    title = "River Stone Sounds & Syllables",
-                    category = "Early Reading & Phonics • Ages 3–6",
-                    description = "Musical syllable clapping (BO-LA, KU-DA), beginning letter sounds, and spoken vocabulary games.",
+                    title = "Batu Sungai Bunyi & Suku Kata",
+                    category = "Membaca & Fonik Awal • Usia 3–6",
+                    description = "Tepuk tangan berirama untuk suku kata (BO-LA, KU-DA), pengenalan bunyi huruf awal, dan permainan kosakata lisan.",
                     sizeMb = 16.8f,
                     promptCount = 56,
                     isDownloaded = true,
@@ -295,9 +295,9 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                 ),
                 OfflineBundleEntity(
                     bundleId = "BUNDLE-RBS-SPIRAL",
-                    title = "Treehouse Memory Treasures",
-                    category = "2-Week Review & Discovery • Ages 4–6",
-                    description = "Gentle review stories that help children remember and apply words and numbers they learned two weeks ago.",
+                    title = "Peti Ingatan Rumah Pohon",
+                    category = "Ulasan & Penemuan 2 Minggu • Usia 4–6",
+                    description = "Cerita ulasan bertahap yang membantu anak mengingat dan menerapkan kata serta angka yang dipelajari dua minggu lalu.",
                     sizeMb = 11.4f,
                     promptCount = 32,
                     isDownloaded = false,
@@ -309,11 +309,11 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
             dao.insertConsentLog(
                 ConsentAuditEntity(
                     id = 1,
-                    parentUserId = "Parent Caregiver",
+                    parentUserId = "Orang Tua / Wali",
                     timestampUtc = "2026-10-11 14:00",
-                    policyVersion = "Child Privacy Shield v1.0",
+                    policyVersion = "Perisai Privasi Anak v1.0",
                     explicitAffirmationFlag = true,
-                    noticeText = "We record temporary voice audio solely to converse with your child during active sessions. Raw audio recordings are deleted within 24 hours and are never used for advertising or model training."
+                    noticeText = "Kami merekam audio suara sementara hanya untuk bercakap-cakap dengan anak Anda selama sesi aktif. Rekaman audio mentah dihapus otomatis dalam 24 jam dan tidak pernah digunakan untuk iklan atau pelatihan model kecerdasan buatan."
                 )
             )
 
@@ -322,8 +322,8 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     idempotencyKey = "session-log-001",
                     childId = 1,
                     taskId = "TASK-NUM-01",
-                    taskTitle = "Five Forest Apples",
-                    category = "Numbers & Counting",
+                    taskTitle = "Lima Apel di Hutan",
+                    category = "Berhitung & Angka",
                     urrUnassisted = 1,
                     stepDownCount = 0,
                     tcrSeconds = 11,
@@ -339,8 +339,8 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     idempotencyKey = "session-log-002",
                     childId = 1,
                     taskId = "TASK-LIT-01",
-                    taskTitle = "Syllable Clapping: BO-LA",
-                    category = "Sounds & Syllables",
+                    taskTitle = "Tepuk Suku Kata: BO-LA",
+                    category = "Bunyi & Suku Kata",
                     urrUnassisted = 1,
                     stepDownCount = 1,
                     tcrSeconds = 15,
@@ -358,14 +358,14 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
             val now = System.currentTimeMillis()
             dao.insertAudioBufferLog(
                 EphemeralAudioBufferEntity(
-                    chunkId = "Active Voice Session",
+                    chunkId = "Sesi Suara Aktif",
                     childName = "Bima",
-                    turnSummary = "Temporary voice turn in memory • Auto-deletes within 24 hours",
+                    turnSummary = "Audio suara sementara di memori • Terhapus otomatis dalam 24 jam",
                     createdAtMillis = now - 120_000L,
                     expiresAtMillis = now + (23 * 3600_000L),
                     volatileRamOnly = true,
                     biometricStripped = true,
-                    status = "Scheduled for Auto-Deletion"
+                    status = "Dijadwalkan untuk Terhapus Otomatis"
                 )
             )
         }
@@ -399,7 +399,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                 isSessionLockedWindDown = false,
                 isSessionPaused = false,
                 sessionElapsedSeconds = 420,
-                companionMoodText = "Switched learner profile! Kiko is ready."
+                companionMoodText = "Profil anak berhasil diganti! Kiko siap belajar."
             )
         }
     }
@@ -422,7 +422,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                         subtitle = "${task.domain} • ${task.ageTarget}"
                     )
                 ),
-                companionMoodText = "Playing: ${task.title}"
+                companionMoodText = "Bermain: ${task.title}"
             )
         }
         audioController.speak(task.openingQuestion)
@@ -458,17 +458,17 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.update {
             it.copy(
                 isCoPlayDemoActive = true,
-                companionMoodText = "Welcome to the 3-minute Co-Play Demo! Explore together."
+                companionMoodText = "Selamat datang di Demo Co-Play 3 Menit! Mari bermain bersama."
             )
         }
-        audioController.speak("Welcome to our 3-minute co-play demo! Let's explore together with Kiko.")
+        audioController.speak("Selamat datang di demo bersama orang tua tiga menit! Mari bereksplorasi bersama Kiko!")
     }
 
     fun completeCoPlayOnboardingDemo() {
         _uiState.update {
             it.copy(
                 isCoPlayDemoActive = false,
-                companionMoodText = "Co-play demo complete! Kiko is ready for your adventure."
+                companionMoodText = "Demo selesai! Kiko siap melanjutkan petualangan."
             )
         }
     }
@@ -487,11 +487,11 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     currentSnrDb = 8.5f,
                     consecutiveLowSnrTurns = 2,
                     isVisualFallbackActive = true,
-                    companionMoodText = "Noisy room mode: Tap a picture card below!",
+                    companionMoodText = "Mode ruangan bising: Sentuh kartu bergambar di bawah!",
                     dialogueHistory = state.dialogueHistory + DialogueMessage(
                         speaker = "Kiko",
                         text = fallbackSpeech,
-                        subtitle = "Picture Cards Ready"
+                        subtitle = "Kartu Pilihan Siap"
                     )
                 )
             }
@@ -501,7 +501,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     currentSnrDb = 24.5f,
                     consecutiveLowSnrTurns = 0,
                     isVisualFallbackActive = false,
-                    companionMoodText = "Voice mode active! Speak aloud to Kiko."
+                    companionMoodText = "Mode suara aktif! Bicaralah dengan suara lantang kepada Kiko."
                 )
             }
         }
@@ -585,7 +585,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                 EphemeralAudioBufferEntity(
                     chunkId = "Voice Turn • ${SimpleDateFormat("HH:mm", Locale.US).format(Date(now))}",
                     childName = currentProfileName(),
-                    turnSummary = "Temporary voice turn in memory • Auto-deletes within 24 hours",
+                    turnSummary = "Audio suara sementara di memori • Terhapus otomatis dalam 24 jam",
                     createdAtMillis = now,
                     expiresAtMillis = now + 24 * 3600_000L
                 )
@@ -609,7 +609,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
 
             if (isFrustrationExhausted) {
                 finalReplyText = "Let's do this one together! The answer is ${task.expectedKeywords.first()}. You did great trying! Let's move on to our next adventure!"
-                finalSubtitle = "Answer Guided Together • Advancing"
+                finalSubtitle = "Jawaban Dibimbing Bersama • Lanjut Petualangan"
                 finalStepLevel = 0
             } else {
                 finalReplyText = evaluation.companionSpokenReply
@@ -637,7 +637,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                         isLoadingTurn = false,
                         currentStepDownLevel = finalStepLevel,
                         isVisualFallbackActive = true,
-                        companionMoodText = "It is very loud in here right now! Let's find a quiet corner.",
+                        companionMoodText = "Ruangan sangat ramai! Mari cari sudut yang tenang.",
                         dialogueHistory = current.dialogueHistory + kikoReplyMsg
                     )
                 }
@@ -649,7 +649,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                         isLoadingTurn = false,
                         currentStepDownLevel = finalStepLevel,
                         isVisualFallbackActive = true,
-                        companionMoodText = "I'm having a little trouble hearing you. Can you tap your answer on the screen?",
+                        companionMoodText = "Kiko agak sulit mendengar suaramu. Boleh sentuh jawabanmu di layar?",
                         dialogueHistory = current.dialogueHistory + kikoReplyMsg
                     )
                 }
@@ -667,11 +667,11 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                             currentStepDownLevel = 0,
                             sessionElapsedSeconds = 900,
                             isSessionLockedWindDown = true,
-                            companionMoodText = "Daily 15-minute adventure complete! Time to rest.",
+                            companionMoodText = "Petualangan 15 menit hari ini selesai! Waktunya istirahat.",
                             dialogueHistory = current.dialogueHistory + kikoReplyMsg + DialogueMessage(
                                 speaker = "Kiko",
                                 text = windDownText,
-                                subtitle = "Bedtime & Wind-Down Ritual"
+                                subtitle = "Ritual Menjelang Istirahat"
                             )
                         )
                     }
@@ -682,9 +682,9 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                             isLoadingTurn = false,
                             currentStepDownLevel = finalStepLevel,
                             companionMoodText = if (evaluation.isCorrect) {
-                                "Hoot-hurray! You figured it out!"
+                                "Hore hebat! Kamu berhasil menjawabnya!"
                             } else {
-                                "Let's think together with a gentle clue..."
+                                "Mari kita pikirkan bersama dengan petunjuk lembut..."
                             },
                             dialogueHistory = current.dialogueHistory + kikoReplyMsg
                         )
@@ -744,7 +744,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
         val tapMessage = DialogueMessage(
             speaker = "Child",
             text = "${option.emojiVisual} ${option.spokenLabel}",
-            subtitle = "Tapped Picture Card"
+            subtitle = "Sentuh Kartu Bergambar"
         )
 
         if (option.isCorrect) {
@@ -792,7 +792,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     isVisualFallbackActive = false,
                     consecutiveLowSnrTurns = 0,
                     currentSnrDb = 24.0f,
-                    companionMoodText = "Awesome job! Back to voice play.",
+                    companionMoodText = "Hebat sekali! Kembali ke obrolan suara.",
                     dialogueHistory = it.dialogueHistory + tapMessage + kikoAffirmation
                 )
             }
@@ -808,11 +808,11 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
             _uiState.update {
                 it.copy(
                     currentStepDownLevel = nextStep,
-                    companionMoodText = "Let's try counting together!",
+                    companionMoodText = "Ayo kita coba berhitung bersama!",
                     dialogueHistory = it.dialogueHistory + tapMessage + DialogueMessage(
                         speaker = "Kiko",
                         text = hint,
-                        subtitle = "Gentle Hint $nextStep of 3",
+                        subtitle = "Petunjuk Lembut $nextStep dari 3",
                         isHintStep = true
                     )
                 )
@@ -831,14 +831,35 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                 isSessionLockedWindDown = true,
                 isVisualFallbackActive = false,
                 isSessionPaused = false,
-                companionMoodText = "Today's 15-minute adventure is complete!",
+                companionMoodText = "Petualangan 15 menit hari ini selesai!",
                 dialogueHistory = state.dialogueHistory + DialogueMessage(
                     speaker = "Kiko",
                     text = windDownSpeech,
-                    subtitle = "Daily Wind-Down Ritual"
+                    subtitle = "Ritual Istirahat Harian"
                 )
             )
         }
+    }
+
+    /**
+     * Generates the WhatsApp Post-Session Digest message text for parents per PRD Section 3 & 4.
+     */
+    fun buildParentWhatsAppDigestText(): String {
+        val profile = profiles.value.firstOrNull { it.id == _uiState.value.selectedProfileId }
+        val childName = profile?.name ?: "Si Kecil"
+        val urr = profile?.urrScorePercent ?: 76
+        val tcr = profile?.medianTcrSeconds ?: 13
+        return """
+            🦉 *Laporan Belajar Kiko (Sesi 15 Menit)*
+            Halo Bunda / Ayah! $childName baru saja menyelesaikan petualangan Calistung hari ini:
+            
+            ✅ *Skor Pemahaman Mandiri (URR):* $urr%
+            ⚡ *Kecepatan Respon (Median TCR):* $tcr detik
+            ✨ *Petunjuk Cerita Terbuka:* ${profile?.unlockedStoryClues ?: 4} Petunjuk
+            
+            🍽️ *Pertanyaan Meja Makan Hari Ini:*
+            "Tadi bersama Kiko, kata apa yang berima dengan 'MATA' dan 'BATA' ya?"
+        """.trimIndent()
     }
 
     fun parentResetDailySessionLock() {
@@ -850,11 +871,11 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                 isSessionLockedWindDown = false,
                 isSessionPaused = false,
                 currentStepDownLevel = 0,
-                companionMoodText = "Fresh 15-minute adventure started!",
+                companionMoodText = "Petualangan 15 menit baru dimulai!",
                 dialogueHistory = listOf(
                     DialogueMessage(
                         speaker = "Kiko",
-                        text = "Welcome back for a fresh adventure! ${task.openingQuestion}",
+                        text = "Selamat datang kembali di petualangan baru! ${task.openingQuestion}",
                         subtitle = "${task.domain} • ${task.ageTarget}"
                     )
                 )
@@ -876,9 +897,9 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
             it.copy(
                 isOfflinePreCachedMode = enabled,
                 companionMoodText = if (enabled) {
-                    "Offline Lesson Pack Active (No Wi-Fi needed)"
+                    "Paket Belajar Luar Jaringan Aktif (Tanpa Internet)"
                 } else {
-                    "Kiko is ready to listen and play!"
+                    "Kiko siap mendengarkan dan bermain!"
                 }
             )
         }
@@ -899,11 +920,11 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
             val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())
             dao.insertConsentLog(
                 ConsentAuditEntity(
-                    parentUserId = parentId.ifBlank { "Parent Caregiver" },
+                    parentUserId = parentId.ifBlank { "Orang Tua / Wali" },
                     timestampUtc = timestamp,
-                    policyVersion = "Child Privacy Shield v1.0",
+                    policyVersion = "Perisai Privasi Anak v1.0",
                     explicitAffirmationFlag = true,
-                    noticeText = "We record temporary voice audio solely to converse with your child during active sessions. Raw audio recordings are deleted within 24 hours and are never used for advertising or model training."
+                    noticeText = "Kami merekam audio suara sementara hanya untuk bercakap-cakap dengan anak Anda selama sesi aktif. Rekaman audio mentah dihapus otomatis dalam 24 jam dan tidak pernah digunakan untuk iklan atau pelatihan model kecerdasan buatan."
                 )
             )
             _uiState.update {
@@ -936,7 +957,7 @@ class CalistungViewModel(application: Application) : AndroidViewModel(applicatio
                     speaksFullSentencesScore = speaksFullSentences,
                     returnsPhoneCalmlyScore = returnsPhoneCalmly,
                     readsSyllablesIndependentlyScore = readsSyllables,
-                    notes = notes.ifBlank { "Enjoys counting aloud with Kiko and puts the phone down calmly." },
+                    notes = notes.ifBlank { "Anak senang berhitung lantang bersama Kiko dan meletakkan ponsel dengan tenang." },
                     submittedAtDate = dateStr
                 )
             )
