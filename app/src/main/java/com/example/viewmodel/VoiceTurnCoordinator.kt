@@ -1,6 +1,6 @@
 package com.example.viewmodel
 
-import com.example.audio.VoiceCompanionAudioController
+import com.example.audio.AudioSpeaker
 import com.example.data.CalistungDao
 import com.example.data.ChildProfileEntity
 import com.example.data.EphemeralAudioBufferEntity
@@ -21,7 +21,7 @@ import java.util.UUID
 class VoiceTurnCoordinator(
     private val scope: CoroutineScope,
     private val dao: CalistungDao,
-    private val audioController: VoiceCompanionAudioController,
+    private val audioController: AudioSpeaker,
     private val sessionCoordinator: CalistungSessionCoordinator,
     private val uiState: MutableStateFlow<CompanionUiState>,
     private val getProfiles: () -> List<ChildProfileEntity>,
