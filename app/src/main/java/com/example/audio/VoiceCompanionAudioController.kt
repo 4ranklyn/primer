@@ -13,12 +13,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.Locale
 
+interface AudioSpeaker {
+    fun speak(text: String)
+}
+
 class VoiceCompanionAudioController(
     private val context: Context,
     private val onSpeechResult: (String) -> Unit,
     private val onSpeechErrorOrSilence: (String) -> Unit,
     private val onRmsVolumeChanged: (Float) -> Unit
-) {
+) : AudioSpeaker {
     private var tts: TextToSpeech? = null
     private var speechRecognizer: SpeechRecognizer? = null
 
@@ -68,7 +72,7 @@ class VoiceCompanionAudioController(
         }
     }
 
-    fun speak(text: String) {
+    override fun speak(text: String) {
         _isSpeaking.value = true
         val engine = tts
         if (engine != null && _ttsReady.value) {

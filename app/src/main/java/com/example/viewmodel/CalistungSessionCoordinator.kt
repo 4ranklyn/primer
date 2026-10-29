@@ -1,6 +1,6 @@
 package com.example.viewmodel
 
-import com.example.audio.VoiceCompanionAudioController
+import com.example.audio.AudioSpeaker
 import com.example.data.SocraticTask
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 class CalistungSessionCoordinator(
     private val scope: CoroutineScope,
-    private val audioController: VoiceCompanionAudioController,
+    private val audioController: AudioSpeaker,
     private val uiState: MutableStateFlow<CompanionUiState>,
     private val getCurrentTask: () -> SocraticTask
 ) {
