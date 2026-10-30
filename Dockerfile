@@ -3,8 +3,8 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-COPY web/package.json web/package-lock.json* ./
-RUN npm ci
+COPY web/package.json ./
+RUN npm install
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
@@ -38,4 +38,4 @@ USER nextjs
 
 EXPOSE 8080
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "if [ -f server.js ]; then node server.js; elif [ -f web/server.js ]; then node web/server.js; else npx next start -H 0.0.0.0 -p ${PORT:-8080}; fi"]

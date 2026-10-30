@@ -320,6 +320,7 @@ export default function CompanionGamePage() {
       const urrScore =
         tel.tasks_completed > 0 ? Math.round((tel.unassisted_correct_count / tel.tasks_completed) * 100) : 85;
       const medianTcr = computeMedianTcrMs(tel.tcr_measurements);
+      const medianSec = +(medianTcr / 1000).toFixed(1);
       const storedPhone =
         typeof window !== "undefined" ? localStorage.getItem("primer_parent_wa_phone") || "" : "";
       const targetPhone = customPhone || storedPhone || "08123456789";
@@ -332,11 +333,13 @@ export default function CompanionGamePage() {
             childNickname: nick,
             parentWaNumber: targetPhone,
             lessonTitle: "Calistung & Fonik Mandiri Bersama Kiko",
-            durationSec: dur,
-            tasksCompleted: tel.tasks_completed,
-            urrPercentage: urrScore,
-            medianTcrMs: medianTcr,
-            stepDownsTriggered: tel.step_downs_triggered,
+            metrics: {
+              durationSec: dur,
+              tasksCompleted: tel.tasks_completed,
+              urrPercentage: urrScore,
+              medianTcrSec: medianSec,
+              stepDownsTriggered: tel.step_downs_triggered,
+            },
             struggledConcepts:
               tel.struggled_concepts.length > 0
                 ? tel.struggled_concepts
@@ -349,11 +352,21 @@ export default function CompanionGamePage() {
           setDigestData(data);
         }
       } catch {
-        const fallbackText = `Halo Ayah & Bunda! ${nick} telah menyelesaikan belajar 14 menit bersama Kiko dengan URR ${urrScore}%.`;
+        const fallbackText = `*Laporan Sesi Primer Hari Ini* 🌟\nAnak: *${nick}*\nMateri: *Calistung & Fonik Mandiri Bersama Kiko*\n\n📊 *Capaian Belajar:*\n• Kecepatan Respons (TCR): *${medianSec} detik*\n• Tingkat Kemandirian (URR): *${urrScore}%*\n• Tantangan Selesai: *${tel.tasks_completed} konsep*\n• Bantuan Diberikan: *${tel.step_downs_triggered} kali*\n\n💡 *Ide Obrolan Meja Makan Malam Ini:*\n"Tadi di Primer belajar tentang Calistung & Fonik Mandiri Bersama Kiko. Coba tanya si kecil: tebak ada berapa benda bulat di meja makan malam ini?"\n\n_Primer — Pendamping Suara Sokratik Anak_`;
+        const digits = targetPhone.replace(/\D/g, "");
+        const cleanDigits = digits.startsWith("0") ? `62${digits.slice(1)}` : digits.startsWith("8") ? `62${digits}` : digits;
+        const fallbackUrl = cleanDigits
+          ? `https://wa.me/${cleanDigits}?text=${encodeURIComponent(fallbackText)}`
+          : `https://wa.me/?text=${encodeURIComponent(fallbackText)}`;
+
         setDigestData({
+          success: true,
+          cleanPhone: cleanDigits,
           messageText: fallbackText,
-          whatsappDeepLink: `https://wa.me/628123456789?text=${encodeURIComponent(fallbackText)}`,
+          waUrl: fallbackUrl,
+          whatsappDeepLink: fallbackUrl,
           webhookDelivered: false,
+          dinnerPrompt: "Tadi di Primer belajar tentang Calistung & Fonik Mandiri Bersama Kiko. Coba tanya si kecil: tebak ada berapa benda bulat di meja makan malam ini?",
         });
       } finally {
         setIsSendingDigest(false);
@@ -1296,6 +1309,10 @@ export default function CompanionGamePage() {
         score={score}
         urrPercentage={currentUrrPercentage}
         medianTcrSec={medianTcrInSeconds}
+        stepDownsTriggered={telemetry.step_downs_triggered}
+        waUrl={digestData?.waUrl}
+        messageText={digestData?.messageText}
+        cleanPhone={digestData?.cleanPhone}
         digestData={digestData}
         isSending={isSendingDigest}
         onSendWhatsApp={triggerParentDigestPipeline}

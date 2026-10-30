@@ -50,3 +50,37 @@ export interface LegacyEvaluateResponse {
   nextStepDownLevel?: number;
   spokenReply?: string;
 }
+
+export interface NotifyParentMetrics {
+  durationSec: number;
+  tasksCompleted: number;
+  urrPercentage: number;
+  medianTcrSec: number;
+  stepDownsTriggered: number;
+}
+
+export interface NotifyParentRequest {
+  childNickname: string;
+  parentWaNumber?: string;
+  lessonTitle: string;
+  metrics?: NotifyParentMetrics;
+  struggledConcepts: string[];
+  // Backwards compatibility fields
+  phone?: string;
+  durationSec?: number;
+  tasksCompleted?: number;
+  urrPercentage?: number;
+  medianTcrMs?: number;
+  stepDownsTriggered?: number;
+}
+
+export interface NotifyParentResponse {
+  success: boolean;
+  cleanPhone: string;
+  messageText: string;
+  waUrl: string;
+  whatsappDeepLink?: string; // backwards compatibility
+  webhookDelivered?: boolean;
+  dinnerPrompt?: string;
+}
+

@@ -9,17 +9,15 @@ import {
   Target,
   Sparkles,
   Send,
-  CheckCircle2,
   Lock,
+  Copy,
+  Check,
   ExternalLink,
-  MessageCircle,
+  MessageSquare,
 } from "lucide-react";
+import { NotifyParentResponse } from "@/types/curriculum";
 
-export interface ParentDigestData {
-  messageText: string;
-  whatsappDeepLink: string;
-  webhookDelivered: boolean;
-}
+export type ParentDigestData = NotifyParentResponse;
 
 interface ParentModalProps {
   isOpen: boolean;
@@ -27,7 +25,11 @@ interface ParentModalProps {
   completedCount: number;
   score: number;
   urrPercentage: number;
-  medianTcrSec: string;
+  medianTcrSec: string | number;
+  stepDownsTriggered?: number;
+  waUrl?: string;
+  messageText?: string;
+  cleanPhone?: string;
   digestData?: ParentDigestData | null;
   onResetSession: () => void;
   onSendWhatsApp: (phone: string) => Promise<void>;
@@ -43,6 +45,10 @@ export default function ParentModal({
   score,
   urrPercentage,
   medianTcrSec,
+  stepDownsTriggered = 0,
+  waUrl: propWaUrl,
+  messageText: propMessageText,
+  cleanPhone: propCleanPhone,
   digestData,
   onResetSession,
   onSendWhatsApp,
@@ -52,7 +58,10 @@ export default function ParentModal({
   const [pinAnswer, setPinAnswer] = useState("");
   const [pinError, setPinError] = useState(false);
 
-  // Phone & WhatsApp dispatch state
+  // Clipboard copy state
+  const [copied, setCopied] = useState(false);
+
+  // Phone number state
   const [phoneNumber, setPhoneNumber] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem(STORAGE_PHONE_KEY) || "";
@@ -62,10 +71,28 @@ export default function ParentModal({
 
   const sessionMinutes = Math.max(1, Math.round(completedCount * 1.4));
 
+  // Resolved values prioritizing props then digestData
+  const effectiveMessageText =
+    propMessageText ||
+    digestData?.messageText ||
+    `*Laporan Sesi Primer Hari Ini* 🌟\nAnak: *Adik*\nMateri: *Calistung Bersama Kiko*\n\n📊 *Capaian Belajar:*\n• Kecepatan Respons (TCR): *${medianTcrSec} detik*\n• Tingkat Kemandirian (URR): *${urrPercentage}%*\n• Tantangan Selesai: *${completedCount} konsep*\n• Bantuan Diberikan: *${stepDownsTriggered} kali*\n\n_Primer — Pendamping Suara Sokratik Anak_`;
+
+  const effectiveCleanPhone =
+    propCleanPhone || digestData?.cleanPhone || phoneNumber.replace(/\D/g, "");
+
+  const effectiveWaUrl =
+    propWaUrl ||
+    digestData?.waUrl ||
+    digestData?.whatsappDeepLink ||
+    (effectiveCleanPhone
+      ? `https://wa.me/${effectiveCleanPhone}?text=${encodeURIComponent(effectiveMessageText)}`
+      : `https://wa.me/?text=${encodeURIComponent(effectiveMessageText)}`);
+
   const handleClose = () => {
     setIsUnlocked(false);
     setPinAnswer("");
     setPinError(false);
+    setCopied(false);
     onClose();
   };
 
@@ -79,6 +106,25 @@ export default function ParentModal({
     }
   };
 
+  const handleCopyMessage = async () => {
+    if (!effectiveMessageText) return;
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(effectiveMessageText);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2400);
+      }
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleOpenWhatsApp = () => {
+    if (typeof window !== "undefined" && effectiveWaUrl) {
+      window.open(effectiveWaUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
   const handleSubmitPhone = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phoneNumber) return;
@@ -87,6 +133,17 @@ export default function ParentModal({
     }
     await onSendWhatsApp(phoneNumber);
   };
+
+  // Timestamp for WhatsApp bubble
+  const [bubbleTime] = useState(() => {
+    if (typeof window !== "undefined") {
+      return new Date().toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+    return "12:00";
+  });
 
   return (
     <AnimatePresence>
@@ -97,13 +154,13 @@ export default function ParentModal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            className="w-full max-w-md bg-white text-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col"
+            className="w-full max-w-md bg-white text-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col"
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-sky-100 rounded-xl">
-                  <ShieldCheck className="w-5 h-5 text-sky-600" />
+                <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl">
+                  <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base text-slate-900 leading-tight">
@@ -116,7 +173,7 @@ export default function ParentModal({
               </div>
               <button
                 onClick={handleClose}
-                className="p-1.5 hover:bg-slate-200/60 rounded-full text-slate-400 hover:text-slate-600 transition"
+                className="p-1.5 hover:bg-slate-200/60 rounded-full text-slate-400 hover:text-slate-600 transition cursor-pointer"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -154,7 +211,7 @@ export default function ParentModal({
                     value={pinAnswer}
                     onChange={(e) => setPinAnswer(e.target.value)}
                     placeholder="Ketik angka hasil penjumlahan..."
-                    className="w-full px-4 py-3.5 border-2 border-slate-200 rounded-2xl text-center text-xl font-bold focus:border-sky-500 outline-none transition"
+                    className="w-full px-4 py-3.5 border-2 border-slate-200 rounded-2xl text-center text-xl font-bold focus:border-emerald-500 outline-none transition"
                     autoFocus
                   />
 
@@ -166,7 +223,7 @@ export default function ParentModal({
 
                   <button
                     type="submit"
-                    className="w-full py-3.5 bg-sky-500 hover:bg-sky-600 active:scale-98 text-white font-extrabold rounded-2xl transition shadow-md"
+                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold rounded-2xl transition shadow-md cursor-pointer"
                   >
                     Buka Laporan Sesi
                   </button>
@@ -174,7 +231,7 @@ export default function ParentModal({
               ) : (
                 // Unlocked Parent Digest
                 <div className="space-y-4">
-                  {/* 3 Clear ROI Metrics Cards */}
+                  {/* 3 ROI Metrics Cards */}
                   <div className="grid grid-cols-3 gap-2">
                     <div className="p-3 bg-sky-50 rounded-2xl border border-sky-100 flex flex-col justify-between">
                       <div className="flex items-center gap-1 text-sky-600">
@@ -222,63 +279,99 @@ export default function ParentModal({
                     </div>
                   </div>
 
-                  {/* Generated AI WhatsApp Digest Display */}
-                  {digestData && digestData.messageText && (
-                    <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-2">
-                      <div className="flex items-center justify-between text-emerald-800 font-bold text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <MessageCircle className="w-4 h-4 text-emerald-600" />
-                          <span>Ringkasan WhatsApp Gemini 3.8 Flash</span>
-                        </div>
-                        {digestData.webhookDelivered && (
-                          <span className="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Terkirim Otomatis
+                  {/* WhatsApp Chat Bubble Card Preview (#DCF8C6) */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700 px-1">
+                      <div className="flex items-center gap-1.5 text-emerald-700">
+                        <MessageSquare className="w-4 h-4 fill-emerald-600 text-emerald-600" />
+                        <span>Pratinjau Pesan WhatsApp</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        Deep Link (wa.me)
+                      </span>
+                    </div>
+
+                    <div className="relative p-4 rounded-2xl rounded-tr-sm bg-[#DCF8C6] border border-[#BDE59E] shadow-sm text-slate-900">
+                      {/* Chat text */}
+                      <div className="text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap font-sans text-slate-800">
+                        {effectiveMessageText}
+                      </div>
+
+                      {/* Bubble timestamp & double check status */}
+                      <div className="flex items-center justify-end gap-1 mt-2 text-[10px] text-slate-500 font-medium">
+                        <span>{bubbleTime || "Hari ini"}</span>
+                        <span className="text-[#34B7F1] font-bold tracking-tighter">
+                          ✓✓
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Primary & Secondary Action CTAs */}
+                  <div className="space-y-2 pt-1">
+                    {/* Primary CTA: Kirim Laporan ke WhatsApp */}
+                    <button
+                      onClick={handleOpenWhatsApp}
+                      className="w-full py-3.5 px-4 bg-[#25D366] hover:bg-[#20ba5a] active:scale-98 text-white font-bold rounded-2xl transition shadow-md flex items-center justify-center gap-2 text-sm cursor-pointer"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      <span>Kirim Laporan ke WhatsApp</span>
+                    </button>
+
+                    {/* Secondary CTA: Salin Pesan */}
+                    <button
+                      onClick={handleCopyMessage}
+                      className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-700 font-semibold rounded-2xl transition flex items-center justify-center gap-2 text-xs cursor-pointer border border-slate-200"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-600" />
+                          <span className="text-emerald-700 font-bold">
+                            Tersalin ke Clipboard!
                           </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-slate-700 font-medium whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto bg-white/70 p-3 rounded-xl border border-emerald-100">
-                        {digestData.messageText}
-                      </div>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4 text-slate-500" />
+                          <span>Salin Pesan</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
 
-                      {/* Direct WhatsApp Deep Link Action Button */}
-                      <a
-                        href={digestData.whatsappDeepLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        <span>Buka Chat WhatsApp (Kirim Langsung)</span>
-                      </a>
-                    </div>
-                  )}
-
-                  {/* WhatsApp Custom Phone Update / Re-dispatch Form */}
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
-                    <div>
+                  {/* Inline Phone Input Field if phone is missing or parent wants to update */}
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
                       <p className="text-xs font-bold text-slate-800">
-                        Kirim Ulang ke Nomor WhatsApp Lain
+                        Nomor WhatsApp Orang Tua:
                       </p>
-                      <p className="text-[11px] text-slate-500">
-                        Nomor HP orang tua untuk menerima pesan ringkasan harian
-                      </p>
+                      {effectiveCleanPhone && (
+                        <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">
+                          +{effectiveCleanPhone}
+                        </span>
+                      )}
                     </div>
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      {!effectiveCleanPhone
+                        ? "Masukkan nomor HP agar tautan WhatsApp langsung membuka obrolan dengan nomor Ayah/Bunda."
+                        : "Ingin mengirim ke nomor WhatsApp lain? Masukkan nomor baru di bawah:"}
+                    </p>
 
-                    <form onSubmit={handleSubmitPhone} className="space-y-2">
+                    <form onSubmit={handleSubmitPhone} className="flex gap-2">
                       <input
                         type="tel"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         placeholder="Contoh: 08123456789 atau 62812..."
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-medium focus:border-emerald-500 outline-none"
+                        className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:border-emerald-500 outline-none"
                       />
                       <button
                         type="submit"
                         disabled={isSending || !phoneNumber}
-                        className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
+                        className="py-2 px-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer"
                       >
-                        <Send className="w-4 h-4" />
-                        <span>{isSending ? "Memproses..." : "Perbarui & Kirim Ringkasan"}</span>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>{isSending ? "..." : "Simpan"}</span>
                       </button>
                     </form>
                   </div>
@@ -290,7 +383,7 @@ export default function ParentModal({
                         onResetSession();
                         handleClose();
                       }}
-                      className="w-full py-2.5 text-center text-xs font-bold text-slate-400 hover:text-slate-600 transition"
+                      className="w-full py-2 text-center text-xs font-bold text-slate-400 hover:text-slate-600 transition cursor-pointer"
                     >
                       Reset Kemajuan Belajar Hari Ini
                     </button>
