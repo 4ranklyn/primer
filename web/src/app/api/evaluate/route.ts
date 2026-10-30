@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { challenges } from "@/lib/curriculum";
+import {
+  Challenge,
+  EvaluationClassification,
+  ChildSpeechEvaluationRequest,
+  ChildSpeechEvaluationResponse,
+  LegacyEvaluateResponse,
+} from "@/types/curriculum";
 
-export interface EvaluateRequestBody {
-  transcript: string;
-  challengeId: string;
-  currentHintLevel: number;
-}
-
-export interface EvaluateResponse {
-  status: "CORRECT" | "INCORRECT" | "INAUDIBLE";
-  nextHintLevel: number;
-  spokenFeedback: string;
-}
+export type EvaluateRequestBody = ChildSpeechEvaluationRequest;
+export type EvaluateResponse = ChildSpeechEvaluationResponse | LegacyEvaluateResponse;
 
 /**
  * Clean and normalize text for child speech matching:
@@ -27,150 +25,282 @@ function cleanText(text: string): string {
 }
 
 /**
- * Deterministic local classifier to eliminate LLM latency/tokens for obvious matches.
+ * Local deterministic classifier for exact/clean transcript matches to minimize token spend & latency.
  */
 function evaluateLocally(
   cleanedTranscript: string,
-  target: string,
-  expectedAnswers: string[],
-  currentHintLevel: number,
-  celebrationText: string
-): EvaluateResponse | null {
+  challenge: Challenge,
+  currentLevel: number,
+  childNickname: string
+): ChildSpeechEvaluationResponse | null {
   if (!cleanedTranscript) {
-    return {
-      status: "INAUDIBLE",
-      nextHintLevel: currentHintLevel,
-      spokenFeedback: "Kiko belum mendengar suaramu. Coba lagi ya!",
-    };
+    return null;
   }
 
-  const normalizedTarget = cleanText(target);
-  const normalizedExpected = expectedAnswers.map(cleanText);
+  const normalizedTarget = cleanText(challenge.target);
+  const normalizedExpected = challenge.expectedAnswers.map(cleanText);
 
-  // Exact target match or matches any expected answer
+  const isExactTarget = cleanedTranscript === normalizedTarget;
   const isDirectMatch =
-    cleanedTranscript === normalizedTarget ||
+    isExactTarget ||
     normalizedExpected.includes(cleanedTranscript) ||
-    cleanedTranscript.split(" ").includes(normalizedTarget) ||
-    normalizedExpected.some(
-      (ans) =>
-        cleanedTranscript.includes(ans) ||
-        (ans.length >= 3 && cleanedTranscript.includes(ans.slice(1))) // child dropped leading sound
-    );
+    cleanedTranscript.split(" ").includes(normalizedTarget);
 
   if (isDirectMatch) {
+    const spokenReply = `${childNickname ? `${childNickname}, ` : ""}${challenge.celebrationText}`;
     return {
+      classification: "CORRECT",
+      confidence: 1.0,
+      nextStepDownLevel: 0,
+      spokenReply,
       status: "CORRECT",
-      nextHintLevel: currentHintLevel,
-      spokenFeedback: celebrationText,
+      nextHintLevel: 0,
+      spokenFeedback: spokenReply,
     };
   }
 
   return null;
 }
 
+/**
+ * Build fallback Socratic response if Gemini API times out, fails, or key is unconfigured.
+ */
+function buildFallbackResponse(
+  classification: EvaluationClassification,
+  currentLevel: number,
+  challenge: Challenge,
+  childNickname: string
+): ChildSpeechEvaluationResponse {
+  const namePrefix = childNickname ? `${childNickname}, ` : "";
+
+  if (classification === "CORRECT") {
+    const spokenReply = `${namePrefix}${challenge.celebrationText}`;
+    return {
+      classification: "CORRECT",
+      confidence: 0.9,
+      nextStepDownLevel: 0,
+      spokenReply,
+      status: "CORRECT",
+      nextHintLevel: 0,
+      spokenFeedback: spokenReply,
+    };
+  }
+
+  if (classification === "INAUDIBLE") {
+    const spokenReply = `${namePrefix}Kiko belum mendengar suaramu dengan jelas. Coba ulangi lagi yuk!`;
+    return {
+      classification: "INAUDIBLE",
+      confidence: 0.5,
+      nextStepDownLevel: currentLevel,
+      spokenReply,
+      status: "INAUDIBLE",
+      nextHintLevel: currentLevel,
+      spokenFeedback: spokenReply,
+    };
+  }
+
+  // Increment stepDownLevel: 0 -> 1 -> 2 -> 3 (clamped at 3)
+  const nextLevel = Math.min(Math.max(currentLevel + 1, 1), 3);
+  let spokenReply = "";
+
+  if (nextLevel === 1) {
+    spokenReply = `${namePrefix}${challenge.stepDownHints[0] || "Coba dengarkan bunyinya lagi ya!"}`;
+  } else if (nextLevel === 2) {
+    spokenReply = `${namePrefix}${challenge.stepDownHints[1] || `Apakah jawabannya ${challenge.choices.slice(0, 2).join(" atau ")}?`}`;
+  } else {
+    spokenReply = `${namePrefix}${challenge.stepDownHints[2] || "Yuk ucapkan bersama Kiko!"}`;
+  }
+
+  return {
+    classification: classification === "PARTIAL" ? "PARTIAL" : "INCORRECT",
+    confidence: 0.7,
+    nextStepDownLevel: nextLevel,
+    spokenReply,
+    status: "INCORRECT",
+    nextHintLevel: nextLevel,
+    spokenFeedback: spokenReply,
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as Partial<EvaluateRequestBody>;
-    const { transcript = "", challengeId = "", currentHintLevel = 0 } = body;
+    const body = (await req.json()) as ChildSpeechEvaluationRequest;
+    const {
+      audioBase64,
+      mimeType,
+      transcript = "",
+      currentNode,
+      challengeId,
+      stepDownLevel,
+      currentHintLevel,
+      childNickname = "Adik",
+    } = body;
 
-    const challenge = challenges.find((c) => c.id === challengeId);
-    if (!challenge) {
+    // Resolve challenge node either from explicit currentNode or challengeId lookup
+    let activeChallenge: Challenge | undefined = currentNode;
+    if (!activeChallenge && challengeId) {
+      activeChallenge = challenges.find((c) => c.id === challengeId);
+    }
+    if (!activeChallenge && !challengeId && challenges.length > 0) {
+      activeChallenge = challenges[0];
+    }
+
+    if (!activeChallenge) {
       return NextResponse.json(
-        { error: "Challenge not found" },
+        { error: "Challenge node not found. Provide currentNode or valid challengeId." },
         { status: 404 }
       );
     }
 
+    // Determine current level (support both stepDownLevel and currentHintLevel, clamped 0 to 3)
+    const rawLevel = typeof stepDownLevel === "number" ? stepDownLevel : currentHintLevel ?? 0;
+    const currentStepDown = Math.min(Math.max(rawLevel, 0), 3);
+
+    const hasAudio = Boolean(audioBase64 && audioBase64.trim().length > 0);
     const cleanedTranscript = cleanText(transcript);
-    const clampedHintLevel = Math.min(Math.max(currentHintLevel, 0), 2);
 
-    // 1. Deterministic Local Match Guardrail (Zero token cost, <1ms)
-    const localResult = evaluateLocally(
-      cleanedTranscript,
-      challenge.target,
-      challenge.expectedAnswers,
-      clampedHintLevel,
-      challenge.celebrationText
-    );
-
-    if (localResult) {
-      return NextResponse.json(localResult);
+    // If both audio and transcript are absent, return inaudible response immediately
+    if (!hasAudio && !cleanedTranscript) {
+      const emptyAudioResponse = buildFallbackResponse(
+        "INAUDIBLE",
+        currentStepDown,
+        activeChallenge,
+        childNickname
+      );
+      return NextResponse.json(emptyAudioResponse);
     }
 
-    // 2. Prepare Fallback for timeout or failure
-    const fallbackNextHint = Math.min(clampedHintLevel + 1, 3);
-    const fallbackHintText =
-      challenge.stepDownHints[Math.min(clampedHintLevel, 2)] ||
-      challenge.celebrationText;
+    // Fast-path: local check if text-only transcript exactly matches target/expected answers
+    if (!hasAudio && cleanedTranscript) {
+      const localResult = evaluateLocally(
+        cleanedTranscript,
+        activeChallenge,
+        currentStepDown,
+        childNickname
+      );
+      if (localResult) {
+        return NextResponse.json(localResult);
+      }
+    }
 
-    const fallbackResponse: EvaluateResponse = {
-      status: "INCORRECT",
-      nextHintLevel: fallbackNextHint,
-      spokenFeedback: fallbackHintText,
-    };
+    const fallbackEvalResponse = buildFallbackResponse(
+      "INCORRECT",
+      currentStepDown,
+      activeChallenge,
+      childNickname
+    );
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      // Deterministic fallback if API key is not configured
-      return NextResponse.json(fallbackResponse);
+      // Deterministic fallback when API key is not configured in local environment
+      return NextResponse.json(fallbackEvalResponse);
     }
 
-    // 3. Gemini Call with 2.5s Timeout Guardrail
+    // Note: Gemini 3.8 Flash model identifier as requested; all audio buffers reside strictly in volatile memory.
     const ai = new GoogleGenAI({ apiKey });
+    const targetModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
-    const systemInstruction = `You are an expert Socratic evaluator for Indonesian Calistung (ages 4-6) companion app "Primer".
-Your task: Evaluate an Indonesian toddler's spoken utterance against a target challenge.
-Toddlers often exhibit speech sound disorders or developmental mispronunciations (e.g., dropping initial consonants 'ebek' for 'bebek', lisping 'tutuk' for 'tutup', or saying numbers casually).
+    const systemInstruction = `You are "Kiko", a gentle, encouraging Socratic Calistung (baca, tulis, hitung) learning companion for 4-to-6-year-old Indonesian children (TK A / TK B learners).
 
-Challenge Context:
-- Target Concept: "${challenge.target}"
-- Prompt: "${challenge.promptText}"
-- Expected Answers: ${JSON.stringify(challenge.expectedAnswers)}
-- Current Step-Down Hint Level: ${clampedHintLevel}
-- Available Hints:
-  Level 1 (Nudge): "${challenge.stepDownHints[0]}"
-  Level 2 (Binary Choice): "${challenge.stepDownHints[1]}"
-  Level 3 (Guided Sound/Reveal): "${challenge.stepDownHints[2]}"
-- Celebration text: "${challenge.celebrationText}"
+TARGET LEARNER PROFILE & PHONETIC TOLERANCE:
+- Age: 4 to 6 years old.
+- The child is learning Indonesian phonics, counting, or rhymes.
+- You MUST evaluate child speech with generous developmental phonetic tolerance. Accept common toddler speech patterns, developmental lisps, or partial syllable approximations without penalizing developmental articulation:
+  * Dropped initial or final consonants (e.g., 'ebek' for 'bebek', 'apel' -> 'ape', 'bapa' for 'bapak').
+  * Lisping or sound substitution (e.g., 'c' -> 't', 'r' -> 'l'/'w', 's' -> 't' / 'th', 'kuku' -> 'tutu', 'tiga' -> 'tiya' / 'tida').
+  * Syllable matching: if the child pronounces the core syllable or root sound of the target, count it as CORRECT or PARTIAL.
+  * Casual counting pronunciations (e.g. 'tu', 'wa', 'ga' for satu, dua, tiga).
 
-Classification Rules:
-1. "CORRECT": If the child's utterance reasonably matches the target, target phoneme, or one of the expected answers, even with imperfect pronunciation.
-   - spokenFeedback MUST be enthusiastic Indonesian praise (e.g. celebration text or equivalent).
-   - nextHintLevel remains ${clampedHintLevel}.
-2. "INCORRECT": If the child answered something clearly wrong or unrelated.
-   - nextHintLevel MUST be ${fallbackNextHint}.
-   - spokenFeedback MUST be the appropriate step-down hint in warm Indonesian.
-3. "INAUDIBLE": If the utterance is pure noise, empty, or incomprehensible mumbling.
-   - nextHintLevel remains ${clampedHintLevel}.
-   - spokenFeedback should gently ask them to repeat.`;
+CRITICAL PEDAGOGICAL INVARIANTS:
+1. NEVER say "Salah" (Wrong), "Bukan begitu", or any negative discouraging words.
+2. Address the child naturally using their nickname: "${childNickname}".
+3. Socratic response structuring based on nextStepDownLevel:
+   - If evaluated as CORRECT:
+     * nextStepDownLevel MUST be 0.
+     * spokenReply: Enthusiastic warm celebration praising the child by name (${childNickname}).
+   - If evaluated as INCORRECT or PARTIAL:
+     * nextStepDownLevel must increment from current level (${currentStepDown}): 0 -> 1, 1 -> 2, 2 -> 3, 3 -> 3.
+     * If nextStepDownLevel is 1: Give a gentle curiosity nudge (e.g., focus their attention on the initial sound, mouth shape, or hint: "${activeChallenge.stepDownHints[0]}").
+     * If nextStepDownLevel is 2: Give a warm binary choice (e.g., "Apakah itu A atau B?", hint: "${activeChallenge.stepDownHints[1]}").
+     * If nextStepDownLevel is 3: Give a guided count-along or sound-along prompt inviting the child to say it together with Kiko (hint: "${activeChallenge.stepDownHints[2]}").
+   - If evaluated as OFF_TOPIC:
+     * nextStepDownLevel should increment (or remain clamped at 1..3).
+     * spokenReply: Gently redirect back to the target playfully without saying "Salah".
+   - If evaluated as INAUDIBLE:
+     * nextStepDownLevel remains ${currentStepDown}.
+     * spokenReply: Gently invite the child to repeat because Kiko's ears missed it.
+
+CHALLENGE CONTEXT:
+- Challenge ID: "${activeChallenge.id}"
+- Challenge Type: "${activeChallenge.type}"
+- Target Concept: "${activeChallenge.target}"
+- Question Prompt: "${activeChallenge.promptText}"
+- Expected Answers: ${JSON.stringify(activeChallenge.expectedAnswers)}
+- Visual Card Choices: ${JSON.stringify(activeChallenge.choices)}
+- Step-Down Hint 1 (Nudge): "${activeChallenge.stepDownHints[0]}"
+- Step-Down Hint 2 (Binary Choice): "${activeChallenge.stepDownHints[1]}"
+- Step-Down Hint 3 (Guided sound/count-along): "${activeChallenge.stepDownHints[2]}"
+- Celebration Template: "${activeChallenge.celebrationText}"
+- Current Step-Down Level: ${currentStepDown}
+
+RESPONSE FORMAT:
+You must return strictly valid JSON matching the schema.`;
+
+    // Prepare multimodal content parts in volatile memory (never written to disk)
+    const contents: Array<string | { inlineData: { mimeType: string; data: string } } | { text: string }> = [];
+
+    if (hasAudio) {
+      const audioMime = mimeType || "audio/webm";
+      // Clean base64 string if client sent data URL prefix
+      const cleanBase64 = (audioBase64 as string).replace(/^data:[^;]+;base64,/, "").trim();
+      contents.push({
+        inlineData: {
+          mimeType: audioMime,
+          data: cleanBase64,
+        },
+      });
+      contents.push({
+        text: `Listen to this 4-to-6-year-old Indonesian child speaking for challenge "${activeChallenge.id}". Evaluate pronunciation with phonetic tolerance. Current stepDownLevel is ${currentStepDown}. Child's nickname is "${childNickname}".${cleanedTranscript ? ` Fallback transcript provided by speech recognizer: "${cleanedTranscript}".` : ""}`,
+      });
+    } else {
+      contents.push({
+        text: `Evaluate this fallback text transcript from a 4-to-6-year-old Indonesian child for challenge "${activeChallenge.id}": "${cleanedTranscript}". Current stepDownLevel is ${currentStepDown}. Child's nickname is "${childNickname}".`,
+      });
+    }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: `Evaluate toddler utterance: "${cleanedTranscript}"`,
+        model: targetModel,
+        contents,
         config: {
           systemInstruction,
-          temperature: 0.1,
+          temperature: 0.2,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              status: {
+              classification: {
                 type: Type.STRING,
-                enum: ["CORRECT", "INCORRECT", "INAUDIBLE"],
+                enum: ["CORRECT", "PARTIAL", "INCORRECT", "OFF_TOPIC", "INAUDIBLE"],
+                description: "Strict classification of child speech response",
               },
-              nextHintLevel: {
+              confidence: {
+                type: Type.NUMBER,
+                description: "Evaluation confidence score between 0.0 and 1.0",
+              },
+              nextStepDownLevel: {
                 type: Type.INTEGER,
+                description: "0 if correct; 1 -> 2 -> 3 if incorrect/partial; unchanged if inaudible",
               },
-              spokenFeedback: {
+              spokenReply: {
                 type: Type.STRING,
+                description: "Warm Indonesian Socratic response tailored to childNickname. Never say 'Salah'.",
               },
             },
-            required: ["status", "nextHintLevel", "spokenFeedback"],
+            required: ["classification", "confidence", "nextStepDownLevel", "spokenReply"],
           },
         },
       });
@@ -178,19 +308,50 @@ Classification Rules:
       clearTimeout(timeoutId);
 
       if (response.text) {
-        const parsed = JSON.parse(response.text) as EvaluateResponse;
-        return NextResponse.json({
-          status: parsed.status,
-          nextHintLevel: parsed.nextHintLevel ?? fallbackNextHint,
-          spokenFeedback: parsed.spokenFeedback || fallbackHintText,
-        });
+        const parsed = JSON.parse(response.text) as {
+          classification: EvaluationClassification;
+          confidence: number;
+          nextStepDownLevel: number;
+          spokenReply: string;
+        };
+
+        const rawClassification = parsed.classification || "INCORRECT";
+        const classification: EvaluationClassification = [
+          "CORRECT",
+          "PARTIAL",
+          "INCORRECT",
+          "OFF_TOPIC",
+          "INAUDIBLE",
+        ].includes(rawClassification)
+          ? rawClassification
+          : "INCORRECT";
+
+        const confidence = typeof parsed.confidence === "number" ? parsed.confidence : 0.8;
+        const nextStepDownLevel =
+          typeof parsed.nextStepDownLevel === "number"
+            ? Math.min(Math.max(parsed.nextStepDownLevel, 0), 3)
+            : fallbackEvalResponse.nextStepDownLevel;
+
+        const spokenReply = parsed.spokenReply || fallbackEvalResponse.spokenReply;
+
+        // Populate both new strict schema and backward compatibility fields
+        const finalResponse: ChildSpeechEvaluationResponse = {
+          classification,
+          confidence,
+          nextStepDownLevel,
+          spokenReply,
+          status: classification === "CORRECT" ? "CORRECT" : classification === "INAUDIBLE" ? "INAUDIBLE" : "INCORRECT",
+          nextHintLevel: nextStepDownLevel,
+          spokenFeedback: spokenReply,
+        };
+
+        return NextResponse.json(finalResponse);
       }
 
-      return NextResponse.json(fallbackResponse);
+      return NextResponse.json(fallbackEvalResponse);
     } catch {
       clearTimeout(timeoutId);
-      // Graceful fallback on network timeout (2.5s) or API error
-      return NextResponse.json(fallbackResponse);
+      return NextResponse.json(fallbackEvalResponse);
     }
   } catch {
     return NextResponse.json(
@@ -199,22 +360,3 @@ Classification Rules:
     );
   }
 }
-
-/*
-VERIFICATION / TEST CURL COMMANDS:
-
-# 1. Local deterministic match (Zero token cost, instant):
-# curl -X POST http://localhost:3000/api/evaluate \
-#   -H "Content-Type: application/json" \
-#   -d '{"transcript":"bebek","challengeId":"phonics-1-sound-b","currentHintLevel":0}'
-
-# 2. Child pronunciation tolerance / LLM evaluation:
-# curl -X POST http://localhost:3000/api/evaluate \
-#   -H "Content-Type: application/json" \
-#   -d '{"transcript":"ebek","challengeId":"phonics-1-sound-b","currentHintLevel":0}'
-
-# 3. Incorrect answer stepping down hint level:
-# curl -X POST http://localhost:3000/api/evaluate \
-#   -H "Content-Type: application/json" \
-#   -d '{"transcript":"gajah","challengeId":"phonics-1-sound-b","currentHintLevel":0}'
-*/

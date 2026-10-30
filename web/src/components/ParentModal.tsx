@@ -11,14 +11,27 @@ import {
   Send,
   CheckCircle2,
   Lock,
+  ExternalLink,
+  MessageCircle,
 } from "lucide-react";
+
+export interface ParentDigestData {
+  messageText: string;
+  whatsappDeepLink: string;
+  webhookDelivered: boolean;
+}
 
 interface ParentModalProps {
   isOpen: boolean;
   onClose: () => void;
   completedCount: number;
   score: number;
+  urrPercentage: number;
+  medianTcrSec: string;
+  digestData?: ParentDigestData | null;
   onResetSession: () => void;
+  onSendWhatsApp: (phone: string) => Promise<void>;
+  isSending?: boolean;
 }
 
 const STORAGE_PHONE_KEY = "primer_parent_wa_phone";
@@ -28,7 +41,12 @@ export default function ParentModal({
   onClose,
   completedCount,
   score,
+  urrPercentage,
+  medianTcrSec,
+  digestData,
   onResetSession,
+  onSendWhatsApp,
+  isSending = false,
 }: ParentModalProps) {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [pinAnswer, setPinAnswer] = useState("");
@@ -41,26 +59,13 @@ export default function ParentModal({
     }
     return "";
   });
-  const [isSending, setIsSending] = useState(false);
-  const [sendSuccess, setSendSuccess] = useState(false);
 
-  // Computed ROI metrics
-  const sessionMinutes = Math.max(5, Math.min(25, completedCount * 2 + 5));
-  const accuracyRate =
-    completedCount > 0
-      ? Math.min(100, Math.round(((score / 10) / completedCount) * 100))
-      : 85;
-
-  const teacherNote =
-    completedCount >= 5
-      ? "Lancar di fonik huruf B, A, M. Perlu terus diasah pada perbandingan angka."
-      : "Sangat antusias mendengarkan Kiko! Terus dampingi pelafalan huruf vokal.";
+  const sessionMinutes = Math.max(1, Math.round(completedCount * 1.4));
 
   const handleClose = () => {
     setIsUnlocked(false);
     setPinAnswer("");
     setPinError(false);
-    setSendSuccess(false);
     onClose();
   };
 
@@ -74,40 +79,13 @@ export default function ParentModal({
     }
   };
 
-  const handleSendWhatsApp = async (e: React.FormEvent) => {
+  const handleSubmitPhone = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phoneNumber) return;
-
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_PHONE_KEY, phoneNumber);
     }
-
-    setIsSending(true);
-    try {
-      const res = await fetch("/api/notify-parent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: phoneNumber,
-          stats: {
-            durationMin: sessionMinutes,
-            score: score,
-            urrPercentage: accuracyRate,
-            focusAreas: "Mengenal Huruf B & Berhitung Angka 1-5",
-            dinnerQuestion: "Tadi buah apa yang dihitung bareng Kiko?",
-          },
-        }),
-      });
-
-      if (res.ok) {
-        setSendSuccess(true);
-      }
-    } catch {
-      // offline fallback
-      setSendSuccess(true);
-    } finally {
-      setIsSending(false);
-    }
+    await onSendWhatsApp(phoneNumber);
   };
 
   return (
@@ -132,7 +110,7 @@ export default function ParentModal({
                     Portal Orang Tua (Parent Digest)
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Kawal perkembangan & data belajar si Kecil
+                    Laporan Sesi Belajar &amp; Ide Obrolan Meja Makan
                   </p>
                 </div>
               </div>
@@ -146,7 +124,7 @@ export default function ParentModal({
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto space-y-4">
               {!isUnlocked ? (
                 // Security Math Gate (4 + 3 = 7)
                 <form onSubmit={handleVerifyGate} className="space-y-4 py-2">
@@ -195,63 +173,98 @@ export default function ParentModal({
                 </form>
               ) : (
                 // Unlocked Parent Digest
-                <div className="space-y-5">
+                <div className="space-y-4">
                   {/* 3 Clear ROI Metrics Cards */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-4 bg-sky-50 rounded-2xl border border-sky-100 flex flex-col justify-between">
-                      <div className="flex items-center gap-1.5 text-sky-600">
-                        <Clock className="w-4 h-4" />
-                        <span className="text-xs font-bold uppercase">
-                          Waktu Belajar
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="p-3 bg-sky-50 rounded-2xl border border-sky-100 flex flex-col justify-between">
+                      <div className="flex items-center gap-1 text-sky-600">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-bold uppercase">
+                          Selesai
                         </span>
                       </div>
-                      <p className="text-2xl font-black text-sky-900 mt-2">
-                        {sessionMinutes} Menit
+                      <p className="text-lg font-black text-sky-900 mt-1">
+                        {completedCount} Bab
                       </p>
-                      <span className="text-[10px] text-sky-600 font-medium mt-1">
-                        Fokus harian optimal
+                      <span className="text-[9px] text-sky-600 font-medium">
+                        {sessionMinutes} menit ({score}★)
                       </span>
                     </div>
 
-                    <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex flex-col justify-between">
-                      <div className="flex items-center gap-1.5 text-emerald-600">
-                        <Target className="w-4 h-4" />
-                        <span className="text-xs font-bold uppercase">
-                          Akurasi Mandiri
+                    <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100 flex flex-col justify-between">
+                      <div className="flex items-center gap-1 text-emerald-600">
+                        <Target className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-bold uppercase">
+                          URR Mandiri
                         </span>
                       </div>
-                      <p className="text-2xl font-black text-emerald-900 mt-2">
-                        {accuracyRate}%
+                      <p className="text-lg font-black text-emerald-900 mt-1">
+                        {urrPercentage}%
                       </p>
-                      <span className="text-[10px] text-emerald-600 font-medium mt-1">
-                        Tingkat keberhasilan (URR)
+                      <span className="text-[9px] text-emerald-600 font-medium">
+                        Tanpa petunjuk
+                      </span>
+                    </div>
+
+                    <div className="p-3 bg-purple-50 rounded-2xl border border-purple-100 flex flex-col justify-between">
+                      <div className="flex items-center gap-1 text-purple-600">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-bold uppercase">
+                          TCR Kecepatan
+                        </span>
+                      </div>
+                      <p className="text-lg font-black text-purple-900 mt-1">
+                        {medianTcrSec}s
+                      </p>
+                      <span className="text-[9px] text-purple-600 font-medium">
+                        Respon rata-rata
                       </span>
                     </div>
                   </div>
 
-                  {/* Teacher Note */}
-                  <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200">
-                    <div className="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase mb-1">
-                      <Sparkles className="w-4 h-4 text-amber-500" />
-                      <span>Catatan Guru Kiko</span>
-                    </div>
-                    <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                      &quot;{teacherNote}&quot;
-                    </p>
-                  </div>
+                  {/* Generated AI WhatsApp Digest Display */}
+                  {digestData && digestData.messageText && (
+                    <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-2">
+                      <div className="flex items-center justify-between text-emerald-800 font-bold text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <MessageCircle className="w-4 h-4 text-emerald-600" />
+                          <span>Ringkasan WhatsApp Gemini 3.8 Flash</span>
+                        </div>
+                        {digestData.webhookDelivered && (
+                          <span className="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Terkirim Otomatis
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-slate-700 font-medium whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto bg-white/70 p-3 rounded-xl border border-emerald-100">
+                        {digestData.messageText}
+                      </div>
 
-                  {/* WhatsApp Notification Form */}
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                      {/* Direct WhatsApp Deep Link Action Button */}
+                      <a
+                        href={digestData.whatsappDeepLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        <span>Buka Chat WhatsApp (Kirim Langsung)</span>
+                      </a>
+                    </div>
+                  )}
+
+                  {/* WhatsApp Custom Phone Update / Re-dispatch Form */}
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
                     <div>
                       <p className="text-xs font-bold text-slate-800">
-                        Kirim Ringkasan ke WhatsApp
+                        Kirim Ulang ke Nomor WhatsApp Lain
                       </p>
                       <p className="text-[11px] text-slate-500">
-                        Terima ide obrolan meja makan malam ini via pesan WA
+                        Nomor HP orang tua untuk menerima pesan ringkasan harian
                       </p>
                     </div>
 
-                    <form onSubmit={handleSendWhatsApp} className="space-y-2">
+                    <form onSubmit={handleSubmitPhone} className="space-y-2">
                       <input
                         type="tel"
                         value={phoneNumber}
@@ -262,21 +275,10 @@ export default function ParentModal({
                       <button
                         type="submit"
                         disabled={isSending || !phoneNumber}
-                        className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
+                        className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
                       >
-                        {isSending ? (
-                          <span>Mengirim Ringkasan...</span>
-                        ) : sendSuccess ? (
-                          <>
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span>Terkirim ke WhatsApp!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-4 h-4" />
-                            <span>Kirim Ringkasan ke WhatsApp Saya</span>
-                          </>
-                        )}
+                        <Send className="w-4 h-4" />
+                        <span>{isSending ? "Memproses..." : "Perbarui & Kirim Ringkasan"}</span>
                       </button>
                     </form>
                   </div>
