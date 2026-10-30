@@ -23,6 +23,76 @@ export const metadata: Metadata = {
   },
 };
 
+import ExtensionErrorGuard from "@/components/ExtensionErrorGuard";
+
+const earlyExtensionGuardScript = `
+(function() {
+  try {
+    var rawFetch = window.fetch;
+    var currentFetch = rawFetch;
+    var desc = {
+      configurable: true,
+      enumerable: true,
+      get: function() { return currentFetch; },
+      set: function(fn) { currentFetch = fn; }
+    };
+    try { Object.defineProperty(window, 'fetch', desc); } catch (_) {}
+    try {
+      if (typeof Window !== 'undefined' && Window.prototype) {
+        Object.defineProperty(Window.prototype, 'fetch', desc);
+      }
+    } catch (_) {}
+  } catch (_) {}
+
+  var isIgnored = function(msg, file, stack) {
+    var m = (msg || '').toLowerCase();
+    var f = (file || '').toLowerCase();
+    var s = (stack || '').toLowerCase();
+    return f.indexOf('chrome-extension://') !== -1 ||
+           s.indexOf('chrome-extension://') !== -1 ||
+           m.indexOf('cannot set property fetch') !== -1 ||
+           m.indexOf('only a getter') !== -1 ||
+           m.indexOf('fetch of #<window>') !== -1;
+  };
+
+  var prevOnError = window.onerror;
+  window.onerror = function(message, source, lineno, colno, error) {
+    var msg = String(message || '');
+    var src = String(source || '');
+    var stk = (error && error.stack) ? String(error.stack) : '';
+    if (isIgnored(msg, src, stk)) {
+      return true;
+    }
+    if (typeof prevOnError === 'function') {
+      return prevOnError.apply(this, arguments);
+    }
+    return false;
+  };
+
+  window.addEventListener('error', function(event) {
+    var msg = event.message || (event.error && event.error.message) || '';
+    var file = event.filename || '';
+    var stack = (event.error && event.error.stack) || '';
+    if (isIgnored(msg, file, stack)) {
+      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+      if (event.stopPropagation) event.stopPropagation();
+      if (event.preventDefault) event.preventDefault();
+    }
+  }, true);
+
+  window.addEventListener('unhandledrejection', function(event) {
+    var reason = event.reason;
+    var msg = (reason && reason.message) || String(reason || '');
+    var stack = (reason && reason.stack) || '';
+    if (isIgnored(msg, '', stack)) {
+      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+      if (event.stopPropagation) event.stopPropagation();
+      if (event.preventDefault) event.preventDefault();
+    }
+  }, true);
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,49 +100,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${fredoka.variable} ${nunito.variable} h-full antialiased`}>
-      <head>
+      <body className="min-h-full flex flex-col font-sans">
         <script
           dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var rawFetch = typeof window !== 'undefined' ? window.fetch : null;
-                  var boundFetch = rawFetch ? rawFetch.bind(window) : null;
-                  var currentFetch = boundFetch;
-                  var desc = {
-                    configurable: true,
-                    enumerable: true,
-                    get: function() { return currentFetch; },
-                    set: function(val) { currentFetch = val; }
-                  };
-                  try {
-                    Object.defineProperty(window, 'fetch', desc);
-                  } catch (e) {}
-                  if (typeof Window !== 'undefined' && Window.prototype) {
-                    try {
-                      Object.defineProperty(Window.prototype, 'fetch', desc);
-                    } catch (e) {}
-                  }
-                } catch (e) {}
-
-                if (typeof window !== 'undefined') {
-                  window.addEventListener('error', function(event) {
-                    if (
-                      event &&
-                      ((event.filename && event.filename.indexOf('chrome-extension://') !== -1) ||
-                       (event.message && event.message.indexOf('fetch of #<Window>') !== -1))
-                    ) {
-                      event.preventDefault();
-                      event.stopImmediatePropagation();
-                    }
-                  }, true);
-                }
-              })();
-            `,
+            __html: earlyExtensionGuardScript,
           }}
         />
-      </head>
-      <body className="min-h-full flex flex-col font-sans">
+        <ExtensionErrorGuard />
         {children}
       </body>
     </html>
