@@ -43,8 +43,19 @@ export default function CompanionGamePage() {
 
   // Web Speech Recognition
   const [isRecording, setIsRecording] = useState(false);
-  const [micSupported, setMicSupported] = useState(true);
-  const recognitionRef = useRef<any>(null);
+  const [micSupported] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const w = window as unknown as {
+      SpeechRecognition?: unknown;
+      webkitSpeechRecognition?: unknown;
+    };
+    return Boolean(w.SpeechRecognition || w.webkitSpeechRecognition);
+  });
+  const recognitionRef = useRef<{
+    start: () => void;
+    stop: () => void;
+  } | null>(null);
+  const evaluateUtteranceRef = useRef<((transcript: string) => Promise<void>) | null>(null);
 
   // Speak helper using Web Speech Synthesis
   const speakText = useCallback((text: string) => {
@@ -57,28 +68,51 @@ export default function CompanionGamePage() {
     window.speechSynthesis.speak(utterance);
   }, []);
 
+  const goToChallenge = useCallback(
+    (nextIndex: number | ((prev: number) => number)) => {
+      setHintLevel(0);
+      setSpokenFeedback("");
+      setLastTranscript("");
+      setMascotState("idle");
+      setChallengeIndex(nextIndex);
+    },
+    []
+  );
+
   // Initialize Speech on Challenge Change
   useEffect(() => {
-    setHintLevel(0);
-    setSpokenFeedback("");
-    setLastTranscript("");
-    setMascotState("idle");
     const timer = setTimeout(() => {
       speakText(currentChallenge.promptText);
     }, 600);
     return () => clearTimeout(timer);
-  }, [challengeIndex, currentChallenge, speakText]);
+  }, [challengeIndex, currentChallenge.promptText, speakText]);
 
   // Setup Web Speech Recognition
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+    interface SpeechRecognitionInstance {
+      lang: string;
+      continuous: boolean;
+      interimResults: boolean;
+      maxAlternatives: number;
+      onstart: () => void;
+      onresult: (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
+      onerror: () => void;
+      onend: () => void;
+      start: () => void;
+      stop: () => void;
+    }
+
+    type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+
+    const w = window as unknown as {
+      SpeechRecognition?: SpeechRecognitionConstructor;
+      webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    };
+    const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setMicSupported(false);
       return;
     }
 
@@ -94,10 +128,10 @@ export default function CompanionGamePage() {
         setMascotState("listening");
       };
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => {
         const transcript = event.results[0][0].transcript;
         setLastTranscript(transcript);
-        evaluateUtterance(transcript);
+        evaluateUtteranceRef.current?.(transcript);
       };
 
       recognition.onerror = () => {
@@ -111,62 +145,72 @@ export default function CompanionGamePage() {
 
       recognitionRef.current = recognition;
     } catch {
-      setMicSupported(false);
+      // browser blocked microphone initialization
     }
   }, []);
 
+  const handleEvaluationResult = useCallback(
+    (result: EvaluateResponse) => {
+      setSpokenFeedback(result.spokenFeedback);
+      speakText(result.spokenFeedback);
+
+      if (result.status === "CORRECT") {
+        setMascotState("success");
+        setScore((prev) => prev + 10);
+        confetti({
+          particleCount: 75,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ["#38bdf8", "#fbbf24", "#34d399", "#f43f5e"],
+        });
+
+        setTimeout(() => {
+          goToChallenge((prev) => (prev + 1) % allChallenges.length);
+        }, 2600);
+      } else {
+        setMascotState("hint");
+        setHintLevel(result.nextHintLevel);
+        setTimeout(() => {
+          setMascotState("idle");
+        }, 3500);
+      }
+    },
+    [allChallenges.length, goToChallenge, speakText]
+  );
+
   // Evaluate Utterance via Backend Route
-  const evaluateUtterance = async (transcript: string) => {
-    setMascotState("thinking");
-    try {
-      const res = await fetch("/api/evaluate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transcript,
-          challengeId: currentChallenge.id,
-          currentHintLevel: hintLevel,
-        }),
-      });
+  const evaluateUtterance = useCallback(
+    async (transcript: string) => {
+      setMascotState("thinking");
+      try {
+        const res = await fetch("/api/evaluate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transcript,
+            challengeId: currentChallenge.id,
+            currentHintLevel: hintLevel,
+          }),
+        });
 
-      if (!res.ok) throw new Error("Evaluation failed");
-      const data: EvaluateResponse = await res.json();
-      handleEvaluationResult(data);
-    } catch {
-      const fallbackHint = Math.min(hintLevel + 1, 3);
-      handleEvaluationResult({
-        status: "INCORRECT",
-        nextHintLevel: fallbackHint,
-        spokenFeedback: currentChallenge.stepDownHints[Math.min(hintLevel, 2)],
-      });
-    }
-  };
+        if (!res.ok) throw new Error("Evaluation failed");
+        const data: EvaluateResponse = await res.json();
+        handleEvaluationResult(data);
+      } catch {
+        const fallbackHint = Math.min(hintLevel + 1, 3);
+        handleEvaluationResult({
+          status: "INCORRECT",
+          nextHintLevel: fallbackHint,
+          spokenFeedback: currentChallenge.stepDownHints[Math.min(hintLevel, 2)],
+        });
+      }
+    },
+    [currentChallenge.id, currentChallenge.stepDownHints, handleEvaluationResult, hintLevel]
+  );
 
-  const handleEvaluationResult = (result: EvaluateResponse) => {
-    setSpokenFeedback(result.spokenFeedback);
-    speakText(result.spokenFeedback);
-
-    if (result.status === "CORRECT") {
-      setMascotState("success");
-      setScore((prev) => prev + 10);
-      confetti({
-        particleCount: 75,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ["#38bdf8", "#fbbf24", "#34d399", "#f43f5e"],
-      });
-
-      setTimeout(() => {
-        setChallengeIndex((prev) => (prev + 1) % allChallenges.length);
-      }, 2600);
-    } else {
-      setMascotState("hint");
-      setHintLevel(result.nextHintLevel);
-      setTimeout(() => {
-        setMascotState("idle");
-      }, 3500);
-    }
-  };
+  useEffect(() => {
+    evaluateUtteranceRef.current = evaluateUtterance;
+  });
 
   const startRecording = () => {
     if (!micSupported || !recognitionRef.current) return;
@@ -475,7 +519,7 @@ export default function CompanionGamePage() {
                 <button
                   onClick={() => {
                     setIsDemoOpen(false);
-                    setChallengeIndex(
+                    goToChallenge(
                       (prev) => (prev + 1) % allChallenges.length
                     );
                   }}
@@ -498,7 +542,7 @@ export default function CompanionGamePage() {
         score={score}
         onResetSession={() => {
           setScore(0);
-          setChallengeIndex(0);
+          goToChallenge(0);
         }}
       />
     </main>

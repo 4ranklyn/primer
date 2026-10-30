@@ -40,8 +40,10 @@ ${focus}
 
 Terima kasih telah mendampingi eksplorasi si Kecil bersama Primer! 🚀`;
 
-    const webhookUrl = process.env.WHATSAPP_WEBHOOK_URL;
-    const webhookToken = process.env.WHATSAPP_WEBHOOK_TOKEN;
+    const webhookUrl =
+      process.env.WHATSAPP_WEBHOOK_URL || process.env.WA_GATEWAY_URL;
+    const webhookToken =
+      process.env.WHATSAPP_WEBHOOK_TOKEN || process.env.WA_GATEWAY_TOKEN;
 
     if (webhookUrl) {
       try {

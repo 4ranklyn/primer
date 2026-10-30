@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldCheck,
@@ -35,7 +35,12 @@ export default function ParentModal({
   const [pinError, setPinError] = useState(false);
 
   // Phone & WhatsApp dispatch state
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(STORAGE_PHONE_KEY) || "";
+    }
+    return "";
+  });
   const [isSending, setIsSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
 
@@ -51,23 +56,13 @@ export default function ParentModal({
       ? "Lancar di fonik huruf B, A, M. Perlu terus diasah pada perbandingan angka."
       : "Sangat antusias mendengarkan Kiko! Terus dampingi pelafalan huruf vokal.";
 
-  // Load saved phone from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedPhone = localStorage.getItem(STORAGE_PHONE_KEY);
-      if (savedPhone) setPhoneNumber(savedPhone);
-    }
-  }, []);
-
-  // Reset lock when reopened
-  useEffect(() => {
-    if (isOpen) {
-      setIsUnlocked(false);
-      setPinAnswer("");
-      setPinError(false);
-      setSendSuccess(false);
-    }
-  }, [isOpen]);
+  const handleClose = () => {
+    setIsUnlocked(false);
+    setPinAnswer("");
+    setPinError(false);
+    setSendSuccess(false);
+    onClose();
+  };
 
   const handleVerifyGate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,7 +137,7 @@ export default function ParentModal({
                 </div>
               </div>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="p-1.5 hover:bg-slate-200/60 rounded-full text-slate-400 hover:text-slate-600 transition"
                 aria-label="Close"
               >
@@ -291,7 +286,7 @@ export default function ParentModal({
                     <button
                       onClick={() => {
                         onResetSession();
-                        onClose();
+                        handleClose();
                       }}
                       className="w-full py-2.5 text-center text-xs font-bold text-slate-400 hover:text-slate-600 transition"
                     >
