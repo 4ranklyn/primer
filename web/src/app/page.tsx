@@ -12,6 +12,7 @@ import {
   Zap,
   Play,
   CheckCircle,
+  ChevronRight,
 } from "lucide-react";
 import { getChallenge, getAllChallenges } from "@/lib/curriculum";
 import { Challenge, ChildSpeechEvaluationResponse } from "@/types/curriculum";
@@ -20,23 +21,85 @@ import ParentModal, { ParentDigestData } from "@/components/ParentModal";
 type MascotState = "idle" | "listening" | "thinking" | "success" | "hint" | "speaking" | "paused";
 
 /**
- * Speech synthesis helper extracted outside component render to avoid ref-during-render & hoisting issues
+ * Child-friendly visual cues mapped to choices across curriculum challenges
  */
-function synthesizeSpeech(text: string, onFinish: () => void) {
+const CHOICE_VISUAL_CUES: Record<string, { icon: string; label: string }> = {
+  // Letters (Phonics)
+  B: { icon: "🦆", label: "Bebek & Bola" },
+  D: { icon: "🐶", label: "Domba" },
+  P: { icon: "🐧", label: "Penguin" },
+  A: { icon: "🍎", label: "Apel & Ayam" },
+  O: { icon: "🍊", label: "Oren" },
+  U: { icon: "🐛", label: "Ulat" },
+  M: { icon: "🍽️", label: "Makan & Minum" },
+  N: { icon: "🍚", label: "Nasi" },
+  W: { icon: "🥕", label: "Wortel" },
+  PAK: { icon: "👨", label: "BA-PAK" },
+  JU: { icon: "👕", label: "BA-JU" },
+  LU: { icon: "🔨", label: "BA-LU" },
+  KUKU: { icon: "💅", label: "Ku-Ku (Mirip Buku)" },
+  TOPI: { icon: "🎩", label: "To-Pi" },
+  BOLA: { icon: "⚽", label: "Bo-La" },
+  // Numbers (Counting)
+  "1": { icon: "🐱", label: "1 Kucing" },
+  "2": { icon: "🍎🍎", label: "2 Buah" },
+  "3": { icon: "🍎🍎🍎", label: "3 Apel" },
+  "4": { icon: "🍬🍬🍬🍬", label: "4 Permen" },
+  "5": { icon: "⭐⭐⭐⭐⭐", label: "5 Bintang" },
+  "6": { icon: "🧁🧁🧁🧁🧁🧁", label: "6 Kue" },
+};
+
+/**
+ * Robust Speech Synthesis controller with GC protection and timeout safety
+ */
+let speechTimeoutId: NodeJS.Timeout | null = null;
+
+function stopCurrentSpeech() {
+  if (typeof window !== "undefined") {
+    if ("speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // ignore
+      }
+    }
+    (window as unknown as { _kikoUtterance?: SpeechSynthesisUtterance | null })._kikoUtterance = null;
+  }
+  if (speechTimeoutId) {
+    clearTimeout(speechTimeoutId);
+    speechTimeoutId = null;
+  }
+}
+
+function speakIndonesianText(text: string, onFinish: () => void) {
+  stopCurrentSpeech();
+
   if (typeof window === "undefined" || !("speechSynthesis" in window)) {
     onFinish();
     return;
   }
 
+  try {
+    window.speechSynthesis.resume();
+  } catch {
+    // ignore
+  }
+
   const utterance = new SpeechSynthesisUtterance(text);
+  (window as unknown as { _kikoUtterance?: SpeechSynthesisUtterance | null })._kikoUtterance = utterance;
   utterance.lang = "id-ID";
   utterance.rate = 0.95;
-  utterance.pitch = 1.1;
+  utterance.pitch = 1.12;
 
   let finished = false;
   const finishOnce = () => {
     if (!finished) {
       finished = true;
+      if (speechTimeoutId) {
+        clearTimeout(speechTimeoutId);
+        speechTimeoutId = null;
+      }
+      (window as unknown as { _kikoUtterance?: SpeechSynthesisUtterance | null })._kikoUtterance = null;
       onFinish();
     }
   };
@@ -44,11 +107,15 @@ function synthesizeSpeech(text: string, onFinish: () => void) {
   utterance.onend = finishOnce;
   utterance.onerror = finishOnce;
 
-  setTimeout(() => {
-    finishOnce();
-  }, Math.max(2500, text.length * 90));
+  // Maximum speech duration fallback
+  const maxWaitMs = Math.min(8000, Math.max(2000, text.length * 80));
+  speechTimeoutId = setTimeout(finishOnce, maxWaitMs);
 
-  window.speechSynthesis.speak(utterance);
+  try {
+    window.speechSynthesis.speak(utterance);
+  } catch {
+    finishOnce();
+  }
 }
 
 export default function CompanionGamePage() {
@@ -66,6 +133,10 @@ export default function CompanionGamePage() {
   const [isSessionPaused, setIsSessionPaused] = useState(false);
   const [isWindDownCompleted, setIsWindDownCompleted] = useState(false);
   const [lowSnrCount, setLowSnrCount] = useState<number>(0);
+
+  // Tactile Answer Cards Visual Feedback
+  const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+  const [choiceFeedback, setChoiceFeedback] = useState<"correct" | "incorrect" | null>(null);
 
   // Telemetry State Metrics
   const [telemetry, setTelemetry] = useState({
@@ -95,11 +166,10 @@ export default function CompanionGamePage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const animationFrameRef = useRef<number | null>(null);
 
-  // VAD & Silence Detection Timing Refs
+  // Speech Recognition & VAD Timing Refs
   const isSpeechDetectedRef = useRef<boolean>(false);
   const lastSpeechTimeRef = useRef<number>(0);
-  const silenceTimer10sRef = useRef<NodeJS.Timeout | null>(null);
-  const silenceTimer25sRef = useRef<NodeJS.Timeout | null>(null);
+  const silenceTimer15sRef = useRef<NodeJS.Timeout | null>(null);
   const isListeningRef = useRef<boolean>(false);
   const isEvaluatingRef = useRef<boolean>(false);
   const isSpeakingRef = useRef<boolean>(false);
@@ -108,14 +178,24 @@ export default function CompanionGamePage() {
   // TCR Timing Ref: recorded when companion's prompt finishes playing
   const promptEndTimeRef = useRef<number>(0);
 
-  // Active audio element for pre-cached .opus playback
+  // Active audio element for pre-cached audio playback
   const activeAudioElRef = useRef<HTMLAudioElement | null>(null);
+
+  // Speech recognition ref & captured transcript buffer
+  const recognitionRef = useRef<{
+    start: () => void;
+    stop: () => void;
+    abort?: () => void;
+  } | null>(null);
+  const capturedTranscriptRef = useRef<string>("");
 
   // Callback function refs for cyclic calls
   const playSocraticPromptRef = useRef<((text: string, audioUrl?: string) => Promise<void>) | null>(null);
   const startRecordingRef = useRef<(() => Promise<void>) | null>(null);
   const stopRecordingRef = useRef<(() => void) | null>(null);
-  const evaluateAudioBlobRef = useRef<((blob: Blob, tcrMs: number) => Promise<void>) | null>(null);
+  const evaluateAnswerRef = useRef<
+    ((params: { blob?: Blob; transcript?: string; tcrMs: number }) => Promise<void>) | null
+  >(null);
 
   // Ref to forward latest state into callbacks without stale closures
   const stateRef = useRef({
@@ -150,6 +230,79 @@ export default function CompanionGamePage() {
     telemetry,
     sessionDurationSec,
   ]);
+
+  // Setup Web Speech Recognition for live Indonesian speech-to-text
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    interface SpeechRecognitionInstance {
+      lang: string;
+      continuous: boolean;
+      interimResults: boolean;
+      maxAlternatives: number;
+      onresult: (event: {
+        resultIndex: number;
+        results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal?: boolean }>;
+      }) => void;
+      onerror: (event: unknown) => void;
+      onend: () => void;
+      start: () => void;
+      stop: () => void;
+      abort?: () => void;
+    }
+
+    type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+
+    const w = window as unknown as {
+      SpeechRecognition?: SpeechRecognitionConstructor;
+      webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    };
+    const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) return;
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "id-ID";
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = (event) => {
+        let text = "";
+        for (let i = 0; i < event.results.length; i++) {
+          const item = event.results[i];
+          if (item[0]?.transcript) {
+            text += item[0].transcript;
+          }
+        }
+        if (text) {
+          capturedTranscriptRef.current = text;
+          setLastTranscript(text);
+          isSpeechDetectedRef.current = true;
+          lastSpeechTimeRef.current = Date.now();
+        }
+      };
+
+      recognition.onerror = () => {
+        // Log speech recognition error without throwing
+      };
+
+      recognition.onend = () => {
+        if (isListeningRef.current && !isEvaluatingRef.current) {
+          if (capturedTranscriptRef.current) {
+            if (stopRecordingRef.current) {
+              stopRecordingRef.current();
+            }
+          }
+        }
+      };
+
+      recognitionRef.current = recognition;
+    } catch {
+      // browser blocked microphone initialization
+    }
+  }, []);
 
   // Compute Median TCR in milliseconds
   const computeMedianTcrMs = useCallback((tcrList: number[]): number => {
@@ -211,43 +364,30 @@ export default function CompanionGamePage() {
 
   // Clear silence detection timers
   const clearSilenceTimers = useCallback(() => {
-    if (silenceTimer10sRef.current) {
-      clearTimeout(silenceTimer10sRef.current);
-      silenceTimer10sRef.current = null;
-    }
-    if (silenceTimer25sRef.current) {
-      clearTimeout(silenceTimer25sRef.current);
-      silenceTimer25sRef.current = null;
+    if (silenceTimer15sRef.current) {
+      clearTimeout(silenceTimer15sRef.current);
+      silenceTimer15sRef.current = null;
     }
   }, []);
 
-  // Reset silence timers and arm 10s and 25s timeouts
+  // Arm gentle nudge if child is silent for > 14s
   const armSilenceTimers = useCallback(() => {
     clearSilenceTimers();
 
-    silenceTimer10sRef.current = setTimeout(() => {
+    silenceTimer15sRef.current = setTimeout(() => {
       if (isListeningRef.current && !isEvaluatingRef.current && !stateRef.current.isSessionPaused) {
-        if (stopRecordingRef.current) stopRecordingRef.current();
-        const nudgeText = `${stateRef.current.childNickname}, Kiko ada di sini menunggumu. Mau kita coba sama-sama?`;
-        if (playSocraticPromptRef.current) {
-          playSocraticPromptRef.current(nudgeText);
+        if (!isSpeechDetectedRef.current) {
+          if (stopRecordingRef.current) stopRecordingRef.current();
+          const nudgeText = `${stateRef.current.childNickname}, Kiko siap mendengarkan suaramu. Boleh bicara atau ketuk kartu jawaban di layar ya!`;
+          if (playSocraticPromptRef.current) {
+            playSocraticPromptRef.current(nudgeText);
+          }
         }
       }
-    }, 10000);
-
-    silenceTimer25sRef.current = setTimeout(() => {
-      if (!stateRef.current.isSessionPaused) {
-        if (stopRecordingRef.current) stopRecordingRef.current();
-        setIsSessionPaused(true);
-        setMascotState("paused");
-        if (typeof window !== "undefined" && "speechSynthesis" in window) {
-          window.speechSynthesis.cancel();
-        }
-      }
-    }, 25000);
+    }, 14000);
   }, [clearSilenceTimers]);
 
-  // Voice Output (TTS) with pre-cached .opus or Indonesian window.speechSynthesis
+  // Voice Output (TTS) with Indonesian window.speechSynthesis
   const playSocraticPrompt = useCallback(
     async (text: string, audioUrl?: string): Promise<void> => {
       return new Promise((resolve) => {
@@ -256,9 +396,8 @@ export default function CompanionGamePage() {
         setMascotState("speaking");
         setSpokenFeedback(text);
 
-        if (typeof window !== "undefined" && "speechSynthesis" in window) {
-          window.speechSynthesis.cancel();
-        }
+        stopCurrentSpeech();
+
         if (activeAudioElRef.current) {
           activeAudioElRef.current.pause();
           activeAudioElRef.current = null;
@@ -267,10 +406,8 @@ export default function CompanionGamePage() {
         const handlePlaybackFinished = () => {
           isSpeakingRef.current = false;
           promptEndTimeRef.current = Date.now();
+          setMascotState("idle");
           resolve();
-          if (!stateRef.current.isSessionPaused && startRecordingRef.current) {
-            startRecordingRef.current();
-          }
         };
 
         if (audioUrl) {
@@ -278,54 +415,308 @@ export default function CompanionGamePage() {
           activeAudioElRef.current = audio;
           audio.onended = handlePlaybackFinished;
           audio.onerror = () => {
-            synthesizeSpeech(text, handlePlaybackFinished);
+            speakIndonesianText(text, handlePlaybackFinished);
           };
           audio.play().catch(() => {
-            synthesizeSpeech(text, handlePlaybackFinished);
+            speakIndonesianText(text, handlePlaybackFinished);
           });
           return;
         }
 
-        synthesizeSpeech(text, handlePlaybackFinished);
+        speakIndonesianText(text, handlePlaybackFinished);
       });
     },
     [clearSilenceTimers]
   );
 
-  // Stop MediaRecorder and teardown VAD monitoring loop
+  // 14:00 Wind-Down Session Cutoff Trigger (PRD Scenario 3 & FR-03)
+  const triggerWindDownRitual = useCallback(() => {
+    if (stopRecordingRef.current) stopRecordingRef.current();
+    clearSilenceTimers();
+    stopCurrentSpeech();
+    setIsSessionPaused(true);
+    setIsWindDownCompleted(true);
+    setMascotState("speaking");
+
+    const windDownText = `Hore! Kamu sudah berusaha luar biasa hebat hari ini, ${childNickname}! Petualangan belajar kita selesai untuk sekarang. Waktunya mengistirahatkan telingamu!`;
+    setSpokenFeedback(windDownText);
+
+    speakIndonesianText(windDownText, () => {
+      setIsParentModalOpen(true);
+    });
+
+    triggerParentDigestPipeline();
+  }, [childNickname, clearSilenceTimers, triggerParentDigestPipeline]);
+
+  // Advance to next curriculum node or complete curriculum lesson tree
+  const advanceToNextChallenge = useCallback(
+    (celebrationSpeech?: string) => {
+      const currentIdx = stateRef.current.challengeIndex;
+      const isLastNode = currentIdx + 1 >= allChallenges.length;
+
+      if (isLastNode) {
+        triggerWindDownRitual();
+        return;
+      }
+
+      const nextIdx = currentIdx + 1;
+      setSelectedChoice(null);
+      setChoiceFeedback(null);
+      setChallengeIndex(nextIdx);
+      setStepDownLevel(0);
+      setLowSnrCount(0);
+      setLastTranscript("");
+      capturedTranscriptRef.current = "";
+
+      const nextChallenge = allChallenges[nextIdx];
+      const speechToPlay = celebrationSpeech
+        ? `${celebrationSpeech} Sekarang, ayo lihat yang ini: ${nextChallenge.promptText}`
+        : nextChallenge.promptText;
+
+      setTimeout(() => {
+        if (playSocraticPromptRef.current) {
+          playSocraticPromptRef.current(speechToPlay, nextChallenge.audioPromptUrl);
+        }
+      }, 700);
+    },
+    [allChallenges, triggerWindDownRitual]
+  );
+
+  // Unified Answer Evaluation: handles both voice audio, speech transcript, and tactile fallbacks
+  const evaluateAnswer = useCallback(
+    async ({
+      blob,
+      transcript,
+      tcrMs,
+    }: {
+      blob?: Blob;
+      transcript?: string;
+      tcrMs: number;
+    }) => {
+      if (isEvaluatingRef.current) return;
+      isEvaluatingRef.current = true;
+      setMascotState("thinking");
+      clearSilenceTimers();
+
+      try {
+        let audioBase64: string | undefined;
+        let mimeType: string | undefined;
+
+        if (blob && blob.size > 0) {
+          const arrayBuffer = await blob.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = "";
+          for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          audioBase64 = btoa(binary);
+          mimeType = blob.type || "audio/webm";
+        }
+
+        const currentLvl = stateRef.current.stepDownLevel;
+        const currentTask = stateRef.current.currentChallenge;
+        const nick = stateRef.current.childNickname;
+        const effectiveTranscript = transcript || capturedTranscriptRef.current;
+
+        const response = await fetch("/api/evaluate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audioBase64,
+            mimeType,
+            transcript: effectiveTranscript,
+            currentNode: currentTask,
+            challengeId: currentTask.id,
+            stepDownLevel: currentLvl,
+            childNickname: nick,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Evaluation API error");
+        }
+
+        const data: ChildSpeechEvaluationResponse = await response.json();
+        const { classification, confidence, nextStepDownLevel, spokenReply } = data;
+
+        if (tcrMs > 0) {
+          setTelemetry((prev) => ({
+            ...prev,
+            tcr_measurements: [...prev.tcr_measurements, tcrMs],
+          }));
+        }
+
+        if (classification === "CORRECT") {
+          setMascotState("success");
+          setScore((s) => s + 10);
+          setLowSnrCount(0);
+
+          setTelemetry((prev) => ({
+            ...prev,
+            tasks_completed: prev.tasks_completed + 1,
+            unassisted_correct_count:
+              currentLvl === 0 ? prev.unassisted_correct_count + 1 : prev.unassisted_correct_count,
+          }));
+
+          confetti({
+            particleCount: 65,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ["#38bdf8", "#fbbf24", "#34d399", "#f43f5e"],
+          });
+
+          isEvaluatingRef.current = false;
+          advanceToNextChallenge(spokenReply);
+          return;
+        }
+
+        if (
+          (classification === "PARTIAL" ||
+            classification === "INCORRECT" ||
+            classification === "OFF_TOPIC") &&
+          confidence >= 0.6
+        ) {
+          setLowSnrCount(0);
+          setTelemetry((prev) => ({
+            ...prev,
+            step_downs_triggered: prev.step_downs_triggered + 1,
+            struggled_concepts: prev.struggled_concepts.includes(currentTask.target)
+              ? prev.struggled_concepts
+              : [...prev.struggled_concepts, `${currentTask.type} (${currentTask.target})`],
+          }));
+
+          if (currentLvl >= 3) {
+            setMascotState("hint");
+            const guidedAnswerSpeech = `${nick}, kamu sudah berusaha sangat hebat! Jawabannya adalah ${currentTask.target}. Yuk kita coba tantangan seru berikutnya!`;
+            isEvaluatingRef.current = false;
+            advanceToNextChallenge(guidedAnswerSpeech);
+            return;
+          }
+
+          const updatedLevel = Math.min(Math.max(nextStepDownLevel || currentLvl + 1, 1), 3);
+          setStepDownLevel(updatedLevel);
+          setMascotState("hint");
+
+          let hintText = spokenReply;
+          if (!hintText) {
+            hintText = currentTask.stepDownHints[Math.min(updatedLevel - 1, 2)];
+          }
+
+          isEvaluatingRef.current = false;
+          if (playSocraticPromptRef.current) {
+            playSocraticPromptRef.current(hintText);
+          }
+          return;
+        }
+
+        // Low SNR / Inaudible handling
+        const newLowSnr = stateRef.current.lowSnrCount + 1;
+        setLowSnrCount(newLowSnr);
+        setMascotState("hint");
+
+        if (newLowSnr >= 2) {
+          const fallbackAdvanceSpeech = `${nick}, Kiko kurang jelas mendengar suara di sekitarmu. Coba ketuk salah satu kartu di layar ya!`;
+          isEvaluatingRef.current = false;
+          if (playSocraticPromptRef.current) {
+            playSocraticPromptRef.current(fallbackAdvanceSpeech);
+          }
+          return;
+        }
+
+        const repeatSpeech = `${nick}, Kiko kurang jelas mendengar suaramu. Boleh bicara lebih dekat ke mikrofon yuk!`;
+        isEvaluatingRef.current = false;
+        if (playSocraticPromptRef.current) {
+          playSocraticPromptRef.current(repeatSpeech);
+        }
+      } catch {
+        setMascotState("idle");
+        isEvaluatingRef.current = false;
+        if (playSocraticPromptRef.current) {
+          playSocraticPromptRef.current(`Kiko siap mendengarkan lagi, ${stateRef.current.childNickname}!`);
+        }
+      }
+    },
+    [advanceToNextChallenge, clearSilenceTimers]
+  );
+
+  // Stop MediaRecorder and Web Speech Recognition, and finalize evaluation
   const stopRecording = useCallback(() => {
     isListeningRef.current = false;
+    clearSilenceTimers();
+
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
     setRmsVolume(0);
 
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+    // Stop speech recognition
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+    }
+
+    // Stop media recorder
+    const hadMediaRecorder = Boolean(
+      mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive"
+    );
+
+    if (hadMediaRecorder && mediaRecorderRef.current) {
       try {
         mediaRecorderRef.current.stop();
       } catch {
-        // ignore state conflicts
+        // ignore
+      }
+    } else {
+      // If MediaRecorder was not active or already stopped, evaluate captured transcript directly
+      const responseTime = Date.now();
+      const tcrMs =
+        promptEndTimeRef.current > 0 ? Math.max(0, responseTime - promptEndTimeRef.current) : 0;
+      const transcript = capturedTranscriptRef.current || lastTranscript;
+      if (evaluateAnswerRef.current) {
+        evaluateAnswerRef.current({ transcript, tcrMs });
       }
     }
-  }, []);
+  }, [clearSilenceTimers, lastTranscript]);
 
   // Initialize or re-arm AudioContext, AnalyserNode and MediaRecorder
   const startRecording = useCallback(async () => {
-    if (isSpeakingRef.current || isEvaluatingRef.current || stateRef.current.isSessionPaused) {
+    if (isEvaluatingRef.current || stateRef.current.isSessionPaused) {
       return;
     }
 
+    // Stop any existing speech synthesis immediately
+    stopCurrentSpeech();
+    if (activeAudioElRef.current) {
+      activeAudioElRef.current.pause();
+      activeAudioElRef.current = null;
+    }
+    isSpeakingRef.current = false;
+
+    clearSilenceTimers();
+    isListeningRef.current = true;
+    setMascotState("listening");
+    audioChunksRef.current = [];
+    capturedTranscriptRef.current = "";
+    isSpeechDetectedRef.current = false;
+    lastSpeechTimeRef.current = 0;
+
+    armSilenceTimers();
+
+    // 1. Start Web Speech Recognition
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch {
+        // already running or restarting
+      }
+    }
+
+    // 2. Start MediaStream & VAD Analyser
     try {
-      clearSilenceTimers();
-      isListeningRef.current = true;
-      setMascotState("listening");
-      audioChunksRef.current = [];
-      isSpeechDetectedRef.current = false;
-      lastSpeechTimeRef.current = 0;
-
-      armSilenceTimers();
-
       if (!mediaStreamRef.current || !mediaStreamRef.current.active) {
         mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -379,16 +770,22 @@ export default function CompanionGamePage() {
       };
 
       mediaRecorder.onstop = () => {
-        if (audioChunksRef.current.length > 0) {
-          const recordedBlob = new Blob(audioChunksRef.current, {
-            type: mediaRecorder.mimeType || "audio/webm",
+        const responseTime = Date.now();
+        const tcrMs =
+          promptEndTimeRef.current > 0 ? Math.max(0, responseTime - promptEndTimeRef.current) : 0;
+        const recordedBlob =
+          audioChunksRef.current.length > 0
+            ? new Blob(audioChunksRef.current, {
+                type: mediaRecorder.mimeType || "audio/webm",
+              })
+            : undefined;
+
+        if (evaluateAnswerRef.current) {
+          evaluateAnswerRef.current({
+            blob: recordedBlob,
+            transcript: capturedTranscriptRef.current,
+            tcrMs,
           });
-          const responseTime = Date.now();
-          const tcrMs =
-            promptEndTimeRef.current > 0 ? Math.max(0, responseTime - promptEndTimeRef.current) : 0;
-          if (evaluateAudioBlobRef.current) {
-            evaluateAudioBlobRef.current(recordedBlob, tcrMs);
-          }
         }
       };
 
@@ -397,7 +794,7 @@ export default function CompanionGamePage() {
       // Real-time VAD & RMS Loop
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       const SILENCE_THRESHOLD = 0.035;
-      const SILENCE_DURATION_MS = 1200;
+      const SILENCE_DURATION_MS = 1300;
 
       const checkVad = () => {
         if (!isListeningRef.current || !analyserRef.current) return;
@@ -435,212 +832,17 @@ export default function CompanionGamePage() {
 
       animationFrameRef.current = requestAnimationFrame(checkVad);
     } catch {
-      setMascotState("idle");
-      isListeningRef.current = false;
+      // Even if MediaRecorder or getUserMedia is unavailable, speech recognition and tactile cards still work
     }
   }, [armSilenceTimers, clearSilenceTimers, stopRecording]);
-
-  // 14:00 Wind-Down Session Cutoff Trigger (PRD Scenario 3 & FR-03)
-  const triggerWindDownRitual = useCallback(() => {
-    stopRecording();
-    clearSilenceTimers();
-    setIsSessionPaused(true);
-    setIsWindDownCompleted(true);
-    setMascotState("speaking");
-
-    const windDownText = `Hore! Kamu sudah berusaha luar biasa hebat hari ini, ${childNickname}! Petualangan belajar kita selesai untuk sekarang. Waktunya mengistirahatkan telingamu!`;
-    setSpokenFeedback(windDownText);
-
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(windDownText);
-      utterance.lang = "id-ID";
-      utterance.rate = 0.95;
-      utterance.pitch = 1.1;
-      utterance.onend = () => {
-        setIsParentModalOpen(true);
-      };
-      window.speechSynthesis.speak(utterance);
-    } else {
-      setIsParentModalOpen(true);
-    }
-
-    triggerParentDigestPipeline();
-  }, [childNickname, clearSilenceTimers, stopRecording, triggerParentDigestPipeline]);
-
-  // Advance to next curriculum node or complete curriculum lesson tree
-  const advanceToNextChallenge = useCallback(
-    (celebrationSpeech?: string) => {
-      const currentIdx = stateRef.current.challengeIndex;
-      const isLastNode = currentIdx + 1 >= allChallenges.length;
-
-      if (isLastNode) {
-        triggerWindDownRitual();
-        return;
-      }
-
-      const nextIdx = currentIdx + 1;
-      setChallengeIndex(nextIdx);
-      setStepDownLevel(0);
-      setLowSnrCount(0);
-      setLastTranscript("");
-
-      const nextChallenge = allChallenges[nextIdx];
-      const speechToPlay = celebrationSpeech
-        ? `${celebrationSpeech} Sekarang, ayo lihat yang ini: ${nextChallenge.promptText}`
-        : nextChallenge.promptText;
-
-      setTimeout(() => {
-        if (playSocraticPromptRef.current) {
-          playSocraticPromptRef.current(speechToPlay, nextChallenge.audioPromptUrl);
-        }
-      }, 700);
-    },
-    [allChallenges, triggerWindDownRitual]
-  );
-
-  // Evaluate Audio Blob via POST /api/evaluate
-  const evaluateAudioBlob = useCallback(
-    async (blob: Blob, tcrMs: number) => {
-      if (isEvaluatingRef.current) return;
-      isEvaluatingRef.current = true;
-      setMascotState("thinking");
-      clearSilenceTimers();
-
-      try {
-        const arrayBuffer = await blob.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = "";
-        for (let i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const audioBase64 = btoa(binary);
-
-        const currentLvl = stateRef.current.stepDownLevel;
-        const currentTask = stateRef.current.currentChallenge;
-        const nick = stateRef.current.childNickname;
-
-        const response = await fetch("/api/evaluate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            audioBase64,
-            mimeType: blob.type || "audio/webm",
-            currentNode: currentTask,
-            stepDownLevel: currentLvl,
-            childNickname: nick,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Evaluation API error");
-        }
-
-        const data: ChildSpeechEvaluationResponse = await response.json();
-        const { classification, confidence, nextStepDownLevel, spokenReply } = data;
-
-        if (tcrMs > 0) {
-          setTelemetry((prev) => ({
-            ...prev,
-            tcr_measurements: [...prev.tcr_measurements, tcrMs],
-          }));
-        }
-
-        if (classification === "CORRECT") {
-          setMascotState("success");
-          setScore((s) => s + 10);
-          setLowSnrCount(0);
-
-          setTelemetry((prev) => ({
-            ...prev,
-            tasks_completed: prev.tasks_completed + 1,
-            unassisted_correct_count:
-              currentLvl === 0 ? prev.unassisted_correct_count + 1 : prev.unassisted_correct_count,
-          }));
-
-          confetti({
-            particleCount: 65,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ["#38bdf8", "#fbbf24", "#34d399", "#f43f5e"],
-          });
-
-          isEvaluatingRef.current = false;
-          advanceToNextChallenge(spokenReply);
-          return;
-        }
-
-        if (
-          (classification === "PARTIAL" || classification === "INCORRECT" || classification === "OFF_TOPIC") &&
-          confidence >= 0.65
-        ) {
-          setLowSnrCount(0);
-          setTelemetry((prev) => ({
-            ...prev,
-            step_downs_triggered: prev.step_downs_triggered + 1,
-            struggled_concepts: prev.struggled_concepts.includes(currentTask.target)
-              ? prev.struggled_concepts
-              : [...prev.struggled_concepts, `${currentTask.type} (${currentTask.target})`],
-          }));
-
-          if (currentLvl >= 3) {
-            setMascotState("hint");
-            const guidedAnswerSpeech = `${nick}, kamu sudah berusaha sangat hebat! Jawabannya adalah ${currentTask.target}. Yuk kita coba tantangan seru berikutnya!`;
-            isEvaluatingRef.current = false;
-            advanceToNextChallenge(guidedAnswerSpeech);
-            return;
-          }
-
-          const updatedLevel = Math.min(Math.max(nextStepDownLevel || currentLvl + 1, 1), 3);
-          setStepDownLevel(updatedLevel);
-          setMascotState("hint");
-
-          let hintText = spokenReply;
-          if (!hintText) {
-            hintText = currentTask.stepDownHints[Math.min(updatedLevel - 1, 2)];
-          }
-
-          isEvaluatingRef.current = false;
-          if (playSocraticPromptRef.current) {
-            playSocraticPromptRef.current(hintText);
-          }
-          return;
-        }
-
-        const newLowSnr = stateRef.current.lowSnrCount + 1;
-        setLowSnrCount(newLowSnr);
-        setMascotState("hint");
-
-        if (newLowSnr >= 3) {
-          const fallbackAdvanceSpeech = `Suara di sekitarmu agak ramai ya, ${nick}. Tidak apa-apa, ayo kita lanjut ke tantangan berikutnya bersama Kiko!`;
-          isEvaluatingRef.current = false;
-          advanceToNextChallenge(fallbackAdvanceSpeech);
-          return;
-        }
-
-        const repeatSpeech = `${nick}, Kiko kurang jelas mendengar suaramu. Boleh bicara lebih dekat ke mikrofon yuk!`;
-        isEvaluatingRef.current = false;
-        if (playSocraticPromptRef.current) {
-          playSocraticPromptRef.current(repeatSpeech);
-        }
-      } catch {
-        setMascotState("idle");
-        isEvaluatingRef.current = false;
-        if (playSocraticPromptRef.current) {
-          playSocraticPromptRef.current(`Kiko siap mendengarkan lagi, ${stateRef.current.childNickname}!`);
-        }
-      }
-    },
-    [advanceToNextChallenge, clearSilenceTimers]
-  );
 
   // Sync callback refs outside render in useEffect
   useEffect(() => {
     playSocraticPromptRef.current = playSocraticPrompt;
     startRecordingRef.current = startRecording;
     stopRecordingRef.current = stopRecording;
-    evaluateAudioBlobRef.current = evaluateAudioBlob;
-  }, [playSocraticPrompt, startRecording, stopRecording, evaluateAudioBlob]);
+    evaluateAnswerRef.current = evaluateAnswer;
+  }, [playSocraticPrompt, startRecording, stopRecording, evaluateAnswer]);
 
   // Session Duration Interval & 14:00 (840s) Wind-down Watcher
   useEffect(() => {
@@ -669,9 +871,7 @@ export default function CompanionGamePage() {
     return () => {
       clearTimeout(timer);
       clearSilenceTimers();
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopCurrentSpeech();
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -693,16 +893,40 @@ export default function CompanionGamePage() {
     }
   };
 
-  // Tactile choice tap fallback handler
+  // Toggle microphone listening when pressing the bottom voice button
+  const handleVoiceButtonToggle = async () => {
+    if (isSessionPaused) {
+      handleResumeSession();
+      return;
+    }
+
+    if (mascotState === "listening") {
+      stopRecording();
+    } else {
+      stopCurrentSpeech();
+      isSpeakingRef.current = false;
+      await startRecording();
+    }
+  };
+
+  // Tactile choice tap fallback handler with rich visual and auditory feedback
   const handleTactileChoice = (choice: string) => {
     stopRecording();
     clearSilenceTimers();
+    stopCurrentSpeech();
 
-    const isCorrect =
-      choice.toLowerCase() === currentChallenge.target.toLowerCase() ||
-      currentChallenge.expectedAnswers.map((a) => a.toLowerCase()).includes(choice.toLowerCase());
+    setSelectedChoice(choice);
+
+    const cleanChoice = choice.trim().toLowerCase();
+    const cleanTarget = currentChallenge.target.trim().toLowerCase();
+    const cleanExpected = currentChallenge.expectedAnswers.map((a) => a.trim().toLowerCase());
+
+    const isCorrect = cleanChoice === cleanTarget || cleanExpected.includes(cleanChoice);
 
     if (isCorrect) {
+      setChoiceFeedback("correct");
+      setMascotState("success");
+      setSpokenFeedback(currentChallenge.celebrationText);
       setScore((s) => s + 10);
       setTelemetry((prev) => ({
         ...prev,
@@ -710,9 +934,22 @@ export default function CompanionGamePage() {
         unassisted_correct_count:
           stepDownLevel === 0 ? prev.unassisted_correct_count + 1 : prev.unassisted_correct_count,
       }));
-      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
-      advanceToNextChallenge(`Hebat sekali ${childNickname}! Pilihanmu tepat!`);
+      confetti({
+        particleCount: 65,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#38bdf8", "#fbbf24", "#34d399", "#f43f5e"],
+      });
+
+      // Speak celebration and advance
+      speakIndonesianText(currentChallenge.celebrationText, () => {
+        setTimeout(() => {
+          advanceToNextChallenge(`Hebat sekali ${childNickname}! Pilihanmu tepat!`);
+        }, 300);
+      });
     } else {
+      setChoiceFeedback("incorrect");
+      setMascotState("hint");
       const nextLvl = Math.min(stepDownLevel + 1, 3);
       setStepDownLevel(nextLvl);
       setTelemetry((prev) => ({
@@ -722,9 +959,28 @@ export default function CompanionGamePage() {
           ? prev.struggled_concepts
           : [...prev.struggled_concepts, `${currentChallenge.type} (${currentChallenge.target})`],
       }));
-      if (playSocraticPromptRef.current) {
-        playSocraticPromptRef.current(currentChallenge.stepDownHints[Math.min(nextLvl - 1, 2)]);
+
+      if (nextLvl >= 3) {
+        const guidedAnswerSpeech = `${childNickname}, kamu sudah berusaha sangat hebat! Jawabannya adalah ${currentChallenge.target}. Yuk kita coba tantangan seru berikutnya!`;
+        setSpokenFeedback(guidedAnswerSpeech);
+        speakIndonesianText(guidedAnswerSpeech, () => {
+          setTimeout(() => {
+            advanceToNextChallenge();
+          }, 600);
+        });
+        return;
       }
+
+      const hintText = currentChallenge.stepDownHints[Math.min(nextLvl - 1, 2)];
+      setSpokenFeedback(hintText);
+      speakIndonesianText(hintText, () => {
+        // Reset selected choice after hint finishes so child can try again
+        setTimeout(() => {
+          setSelectedChoice(null);
+          setChoiceFeedback(null);
+          setMascotState("idle");
+        }, 1200);
+      });
     }
   };
 
@@ -746,7 +1002,7 @@ export default function CompanionGamePage() {
               triggerParentDigestPipeline();
             }
           }}
-          className="p-3 bg-white/80 hover:bg-white active:scale-95 transition rounded-2xl shadow-sm border border-slate-200 flex items-center gap-2 text-slate-700 font-bold text-sm"
+          className="p-3 bg-white/90 hover:bg-white active:scale-95 transition rounded-2xl shadow-sm border border-slate-200 flex items-center gap-2 text-slate-700 font-bold text-sm cursor-pointer"
           aria-label="Parent Hub"
         >
           <Settings className="w-5 h-5 text-slate-500" />
@@ -762,7 +1018,7 @@ export default function CompanionGamePage() {
         </div>
 
         {/* Session Telemetry Pill */}
-        <div className="flex items-center gap-1 text-[11px] font-bold text-slate-500 bg-white/70 px-3 py-1.5 rounded-2xl border border-slate-200">
+        <div className="flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-white/80 px-3 py-1.5 rounded-2xl border border-slate-200 shadow-sm">
           <span>URR: {currentUrrPercentage}%</span>
         </div>
       </header>
@@ -770,7 +1026,7 @@ export default function CompanionGamePage() {
       {/* Main Play Area */}
       <section className="w-full max-w-md flex flex-col items-center flex-1 justify-around my-2 text-center">
         {/* Challenge Prompt Banner */}
-        <div className="w-full bg-white/90 backdrop-blur-sm p-4 rounded-3xl shadow-md border-2 border-amber-200 flex flex-col items-center gap-2">
+        <div className="w-full bg-white/95 backdrop-blur-sm p-4 rounded-3xl shadow-md border-2 border-amber-200 flex flex-col items-center gap-2">
           <div className="flex items-center justify-between w-full">
             <span className="text-xs uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
               Tantangan {challengeIndex + 1}/{allChallenges.length} • {currentChallenge.type}
@@ -781,7 +1037,7 @@ export default function CompanionGamePage() {
                   playSocraticPromptRef.current(currentChallenge.promptText, currentChallenge.audioPromptUrl);
                 }
               }}
-              className="p-1.5 hover:bg-slate-100 rounded-full text-amber-600 active:scale-90 transition"
+              className="p-1.5 hover:bg-slate-100 rounded-full text-amber-600 active:scale-90 transition cursor-pointer"
               title="Dengarkan Ulang"
             >
               <Volume2 className="w-5 h-5" />
@@ -815,7 +1071,7 @@ export default function CompanionGamePage() {
         </div>
 
         {/* Mascot (Kiko Orb) Driven by AudioContext RMS Volume */}
-        <div className="relative my-4 flex flex-col items-center justify-center">
+        <div className="relative my-3 flex flex-col items-center justify-center">
           <motion.div
             animate={{
               scale: dynamicOrbScale,
@@ -835,7 +1091,7 @@ export default function CompanionGamePage() {
               stiffness: 300,
               damping: 20,
             }}
-            className="w-48 h-48 sm:w-56 sm:h-56 rounded-full absolute -z-0 bg-gradient-to-tr from-amber-200 via-sky-200 to-rose-200"
+            className="w-44 h-44 sm:w-52 sm:h-52 rounded-full absolute -z-0 bg-gradient-to-tr from-amber-200 via-sky-200 to-rose-200"
           />
 
           <motion.div
@@ -855,7 +1111,7 @@ export default function CompanionGamePage() {
               repeat: mascotState === "thinking" || mascotState === "speaking" ? Infinity : 0,
               ease: "easeInOut",
             }}
-            className="w-44 h-44 sm:w-52 sm:h-52 rounded-full overflow-hidden border-4 border-white shadow-xl relative z-10 bg-amber-50"
+            className="w-40 h-40 sm:w-48 sm:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl relative z-10 bg-amber-50"
           >
             <Image
               src="/kiko.jpg"
@@ -872,7 +1128,7 @@ export default function CompanionGamePage() {
                 initial={{ opacity: 0, scale: 0.9, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="mt-4 px-4 py-2.5 bg-slate-900/85 text-white text-sm font-bold rounded-2xl shadow-lg max-w-xs leading-relaxed"
+                className="mt-3 px-4 py-2 bg-slate-900/85 text-white text-xs sm:text-sm font-bold rounded-2xl shadow-lg max-w-xs leading-relaxed"
               >
                 {spokenFeedback}
               </motion.div>
@@ -882,66 +1138,117 @@ export default function CompanionGamePage() {
 
         {/* Tactile Choice Cards Fallback */}
         <div className="w-full flex flex-col gap-2 my-2">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Atau Ketuk Jawaban:
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            {currentChallenge.choices.map((choice) => (
-              <button
-                key={choice}
-                onClick={() => handleTactileChoice(choice)}
-                className="flex-1 py-4 px-3 bg-white hover:bg-amber-50 active:scale-95 transition-all text-xl sm:text-2xl font-black text-amber-700 rounded-3xl shadow-md border-2 border-amber-200 hover:border-amber-400"
-                style={{ fontFamily: "var(--font-fredoka), cursive" }}
-              >
-                {choice}
-              </button>
-            ))}
+          <div className="flex items-center justify-between px-1">
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
+              <span>Pilih atau Ketuk Jawaban:</span>
+            </p>
+            {lowSnrCount >= 2 && (
+              <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-full animate-pulse">
+                Mode Ketuk Aktif
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full">
+            {currentChallenge.choices.map((choice) => {
+              const isSelected = selectedChoice === choice;
+              const cue = CHOICE_VISUAL_CUES[choice] || { icon: "✨", label: choice };
+
+              let choiceStyle =
+                "bg-white hover:bg-amber-50 text-slate-800 border-amber-200 hover:border-amber-400";
+              if (isSelected) {
+                if (choiceFeedback === "correct") {
+                  choiceStyle =
+                    "bg-emerald-500 text-white border-emerald-400 shadow-emerald-200 scale-105 ring-4 ring-emerald-200";
+                } else if (choiceFeedback === "incorrect") {
+                  choiceStyle =
+                    "bg-rose-500 text-white border-rose-400 animate-pulse ring-4 ring-rose-200";
+                }
+              }
+
+              return (
+                <button
+                  key={choice}
+                  onClick={() => handleTactileChoice(choice)}
+                  disabled={choiceFeedback === "correct"}
+                  className={`py-3.5 px-2 active:scale-95 transition-all rounded-3xl shadow-md border-2 cursor-pointer flex flex-col items-center justify-center gap-1 ${choiceStyle}`}
+                >
+                  <span className="text-2xl sm:text-3xl">{cue.icon}</span>
+                  <span
+                    className="text-xl sm:text-2xl font-black leading-tight"
+                    style={{ fontFamily: "var(--font-fredoka), cursive" }}
+                  >
+                    {choice}
+                  </span>
+                  <span className="text-[10px] sm:text-xs font-semibold opacity-90 truncate max-w-full px-1">
+                    {cue.label}
+                  </span>
+                  {isSelected && choiceFeedback === "correct" && (
+                    <CheckCircle className="w-5 h-5 text-white animate-bounce mt-0.5" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-between items-center mt-1 px-1">
+            <span className="text-[11px] text-slate-500 font-medium">
+              Ketuk kartu atau bicara langsung
+            </span>
+            <button
+              onClick={() => advanceToNextChallenge()}
+              className="text-xs text-slate-500 hover:text-slate-800 font-bold transition flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-amber-100/60 cursor-pointer"
+            >
+              <span>Lewati tantangan ini</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </section>
 
-      {/* Real Voice Status & Active Indicator */}
+      {/* Real Voice Status & Interactive Mic Button */}
       <footer className="w-full max-w-md flex flex-col items-center pb-4 pt-1 z-10">
         <div className="w-full flex flex-col items-center gap-2">
-          <div
-            className={`w-full py-5 rounded-3xl flex items-center justify-center gap-3 shadow-xl border-4 transition-all ${
+          <button
+            onClick={handleVoiceButtonToggle}
+            className={`w-full py-4.5 rounded-3xl flex items-center justify-center gap-3 shadow-xl border-4 active:scale-95 cursor-pointer transition-all ${
               mascotState === "listening"
-                ? "bg-sky-500 border-sky-300 text-white animate-pulse"
+                ? "bg-rose-500 hover:bg-rose-600 border-rose-300 text-white animate-pulse"
                 : mascotState === "speaking"
-                ? "bg-amber-500 border-amber-300 text-white"
+                ? "bg-amber-500 hover:bg-amber-600 border-amber-300 text-white"
                 : mascotState === "thinking"
-                ? "bg-purple-500 border-purple-300 text-white"
+                ? "bg-purple-500 hover:bg-purple-600 border-purple-300 text-white"
                 : mascotState === "paused"
-                ? "bg-slate-700 border-slate-500 text-white"
-                : "bg-sky-500 border-sky-300 text-white"
+                ? "bg-slate-700 hover:bg-slate-800 border-slate-500 text-white"
+                : "bg-sky-500 hover:bg-sky-600 border-sky-300 text-white"
             }`}
           >
-            <Mic className={`w-8 h-8 ${mascotState === "listening" ? "animate-bounce" : ""}`} />
+            <Mic className={`w-7 h-7 ${mascotState === "listening" ? "animate-bounce" : ""}`} />
             <span
               className="text-xl sm:text-2xl font-extrabold tracking-wide"
               style={{ fontFamily: "var(--font-fredoka), cursive" }}
             >
               {mascotState === "listening"
-                ? "Kiko Mendengarkan..."
+                ? "Mendengarkan... (Ketuk Selesai)"
                 : mascotState === "speaking"
-                ? "Kiko Sedang Bicara..."
+                ? "Kiko Bicara... (Ketuk Jawab)"
                 : mascotState === "thinking"
                 ? "Kiko Berpikir..."
                 : mascotState === "paused"
-                ? "Sesi Selesai / Dijeda"
-                : "Bicara Langsung Yuk!"}
+                ? "Sesi Dijeda (Ketuk Lanjut)"
+                : "Tekan untuk Bicara (Suara)"}
             </span>
-          </div>
+          </button>
 
           <div className="h-5 text-xs font-medium text-slate-600">
             {mascotState === "listening" ? (
               <span className="text-sky-700 font-bold">
-                Bicara sekarang, Kiko akan berhenti otomatis setelah selesai
+                Bicaralah sekarang, Kiko siap mendengarkan jawabanmu
               </span>
             ) : lastTranscript ? (
               <span>Suara terdengar: &quot;{lastTranscript}&quot;</span>
             ) : (
-              <span>Cukup sebutkan jawabanmu lewat suara</span>
+              <span>Ucapkan jawaban atau ketuk salah satu kartu di atas</span>
             )}
           </div>
         </div>
@@ -971,7 +1278,7 @@ export default function CompanionGamePage() {
               </p>
               <button
                 onClick={handleResumeSession}
-                className="w-full py-4 bg-sky-500 hover:bg-sky-600 active:scale-95 text-white font-extrabold text-lg rounded-2xl shadow-lg transition flex items-center justify-center gap-2"
+                className="w-full py-4 bg-sky-500 hover:bg-sky-600 active:scale-95 text-white font-extrabold text-lg rounded-2xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <CheckCircle className="w-6 h-6" />
                 <span>Lanjutkan Belajar</span>

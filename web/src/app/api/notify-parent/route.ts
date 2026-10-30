@@ -70,7 +70,10 @@ export async function POST(req: NextRequest) {
 
     // Call Gemini 3.8 Flash to generate encouraging, personalized WhatsApp digest
     const apiKey = process.env.GEMINI_API_KEY;
-    const targetModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+    const targetModel =
+      process.env.GEMINI_MODEL && process.env.GEMINI_MODEL !== "gemini-3.8-flash"
+        ? process.env.GEMINI_MODEL
+        : "gemini-flash-latest";
 
     let messageText = "";
 

@@ -27,6 +27,9 @@ function cleanText(text: string): string {
 /**
  * Local deterministic classifier for exact/clean transcript matches to minimize token spend & latency.
  */
+/**
+ * Local deterministic classifier for exact/clean transcript matches to minimize token spend & latency.
+ */
 function evaluateLocally(
   cleanedTranscript: string,
   challenge: Challenge,
@@ -39,12 +42,53 @@ function evaluateLocally(
 
   const normalizedTarget = cleanText(challenge.target);
   const normalizedExpected = challenge.expectedAnswers.map(cleanText);
+  const normalizedChoices = challenge.choices.map(cleanText);
 
-  const isExactTarget = cleanedTranscript === normalizedTarget;
+  const words = cleanedTranscript.split(" ").filter(Boolean);
+
+  // Common toddler pronunciation substitutions in Indonesian TK A/B:
+  // e.g. "tu" -> 1, "wa" -> 2, "ga" -> 3, "pat" -> 4, "ma" -> 5
+  // "tutu" -> "kuku", "tiya" -> "tiga"
+  const toddlerWordEquivalents: Record<string, string[]> = {
+    "1": ["satu", "tu", "atu"],
+    "2": ["dua", "wa", "duwa", "uwa"],
+    "3": ["tiga", "ga", "tiya", "tida", "iga"],
+    "4": ["empat", "pat", "mpat", "empa"],
+    "5": ["lima", "ma", "ima"],
+    "6": ["enam", "nam"],
+    "kuku": ["tutu", "kuku", "kku", "kuku."],
+    "bapak": ["bapa", "apak", "pak"],
+    "bebek": ["ebek", "bebe", "bekbek"],
+    "apel": ["ape", "pel"],
+    "ayam": ["yam", "aya"],
+    "makan": ["akan", "mamam", "mam"],
+    "minum": ["inum", "num"],
+  };
+
+  // 1. Check for CORRECT match with child phonetic tolerance
   const isDirectMatch =
-    isExactTarget ||
+    cleanedTranscript === normalizedTarget ||
     normalizedExpected.includes(cleanedTranscript) ||
-    cleanedTranscript.split(" ").includes(normalizedTarget);
+    words.includes(normalizedTarget) ||
+    normalizedExpected.some((ans) => {
+      if (cleanedTranscript === ans) return true;
+      if (words.includes(ans)) return true;
+      if (cleanedTranscript.includes(ans) || ans.includes(cleanedTranscript)) return true;
+      // Dropped initial or final consonant (e.g., 'ebek' for 'bebek', 'ape' for 'apel')
+      if (ans.length >= 3 && (cleanedTranscript.includes(ans.slice(1)) || cleanedTranscript.includes(ans.slice(0, -1)))) {
+        return true;
+      }
+      // Check toddler equivalents
+      const equivalents = toddlerWordEquivalents[ans] || [];
+      if (equivalents.some((eq) => cleanedTranscript === eq || words.includes(eq) || cleanedTranscript.includes(eq))) {
+        return true;
+      }
+      return false;
+    }) ||
+    // Also check toddler equivalents for target
+    (toddlerWordEquivalents[normalizedTarget] || []).some(
+      (eq) => cleanedTranscript === eq || words.includes(eq) || cleanedTranscript.includes(eq)
+    );
 
   if (isDirectMatch) {
     const spokenReply = `${childNickname ? `${childNickname}, ` : ""}${challenge.celebrationText}`;
@@ -57,6 +101,19 @@ function evaluateLocally(
       nextHintLevel: 0,
       spokenFeedback: spokenReply,
     };
+  }
+
+  // 2. Check for explicit other choice (e.g. child selected or said a different card choice)
+  const isKnownOtherChoice = normalizedChoices
+    .filter((c) => c !== normalizedTarget && !normalizedExpected.includes(c))
+    .some((c) => {
+      if (cleanedTranscript === c || words.includes(c)) return true;
+      const cEquivalents = toddlerWordEquivalents[c] || [];
+      return cEquivalents.some((eq) => cleanedTranscript === eq || words.includes(eq));
+    });
+
+  if (isKnownOtherChoice) {
+    return buildFallbackResponse("INCORRECT", currentLevel, challenge, childNickname);
   }
 
   return null;
@@ -170,8 +227,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(emptyAudioResponse);
     }
 
-    // Fast-path: local check if text-only transcript exactly matches target/expected answers
-    if (!hasAudio && cleanedTranscript) {
+    // Fast-path: local check if transcript matches target/expected answers
+    if (cleanedTranscript) {
       const localResult = evaluateLocally(
         cleanedTranscript,
         activeChallenge,
@@ -184,7 +241,7 @@ export async function POST(req: NextRequest) {
     }
 
     const fallbackEvalResponse = buildFallbackResponse(
-      "INCORRECT",
+      cleanedTranscript ? "INCORRECT" : "INAUDIBLE",
       currentStepDown,
       activeChallenge,
       childNickname
@@ -196,9 +253,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(fallbackEvalResponse);
     }
 
-    // Note: Gemini 3.8 Flash model identifier as requested; all audio buffers reside strictly in volatile memory.
     const ai = new GoogleGenAI({ apiKey });
-    const targetModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+    const targetModel =
+      process.env.GEMINI_MODEL && process.env.GEMINI_MODEL !== "gemini-3.8-flash"
+        ? process.env.GEMINI_MODEL
+        : "gemini-flash-latest";
 
     const systemInstruction = `You are "Kiko", a gentle, encouraging Socratic Calistung (baca, tulis, hitung) learning companion for 4-to-6-year-old Indonesian children (TK A / TK B learners).
 
@@ -268,11 +327,8 @@ You must return strictly valid JSON matching the schema.`;
       });
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
-
     try {
-      const response = await ai.models.generateContent({
+      const generatePromise = ai.models.generateContent({
         model: targetModel,
         contents,
         config: {
@@ -305,7 +361,11 @@ You must return strictly valid JSON matching the schema.`;
         },
       });
 
-      clearTimeout(timeoutId);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Gemini generateContent timeout")), 3500)
+      );
+
+      const response = await Promise.race([generatePromise, timeoutPromise]);
 
       if (response.text) {
         const parsed = JSON.parse(response.text) as {
@@ -350,7 +410,6 @@ You must return strictly valid JSON matching the schema.`;
 
       return NextResponse.json(fallbackEvalResponse);
     } catch {
-      clearTimeout(timeoutId);
       return NextResponse.json(fallbackEvalResponse);
     }
   } catch {
