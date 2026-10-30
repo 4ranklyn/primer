@@ -1,117 +1,113 @@
-# Kiko Calistung (Voice-First Socratic Learning Companion)
+# Primer (Kiko Voice Companion)
 
-[![Android](https://img.shields.io/badge/Platform-Android-3DDC84?style=flat&logo=android&logoColor=white)](https://developer.android.com/)
-[![Kotlin](https://img.shields.io/badge/Language-Kotlin%202.0-7F52FF?style=flat&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
-[![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose%20M3-4285F4?style=flat&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/Tests-Robolectric%20JVM-success?style=flat)](https://robolectric.org/)
-
-**Kiko Calistung** is a restorative, voice-first Socratic learning companion designed for early childhood literacy and numeracy (*Membaca, Menulis, Berhitung* / Calistung, ages 3–6). 
-
-Built on the **"Calm Scaffolding"** and **Tactile Warm Minimalism** design philosophy, Kiko rejects commercial preschool gamification (neon fills, casino dopamine loops, loud sound effects, and intrusive ads) in favor of unhurried conversational inquiry, physical-digital parity, and total parental data sovereignty.
+> **Voice-First Socratic Calistung Companion for Indonesian Pre-Schoolers.**
 
 ---
 
-## Key Features & Architecture
+## 1. Problem Statement
 
-### 1. Socratic Voice Companion (`Suara`)
-* **3-Tier Step-Down Ladder**: Never penalizes or says "wrong". When an answer is incorrect or hesitant, Kiko introduces progressive hints, inducing questions, and tactile analogies.
-* **15-Minute Protected Time Architecture**: Enforces a strict daily session cap that transitions seamlessly into a peaceful twilight wind-down ritual to prevent screen fatigue and habituation.
-* **Multimodal Low-SNR Fallback**: Automatically senses ambient background noise or low speech confidence, immediately rendering large visual Montessori tap cards so learning continues without frustration.
-* **Voice Calibration & Simulated Test Lab**: In-app development controls allow testing different SNR audio levels, step-down hints, and wind-down triggers locally.
-
-### 2. Curriculum & Tactile Modules (`Pilihan`)
-* **Phonemic Awareness & Syllable Synthesis**: Modular voice tasks focusing on vowel sounds, consonants, and word building.
-* **Montessori Numeracy**: Concrete counting, one-to-one correspondence, and number sense up to 10.
-* **Offline Material Bundles**: Downloadable, zero-cloud puzzle packs for offline car rides, classrooms, and quiet time.
-
-### 3. Rest & Data Sovereignty Ops (`Istirahat`)
-* **Zero Persistent Voice Storage**: Temporary raw audio recordings are ephemeral and cryptographically purged within 24 hours.
-* **On-Demand Voice Purge**: Parents can inspect the audit ledger and permanently purge stored voice cache at any moment.
-* **Unit Economics & Token Transparency**: Complete disclosure of API costs, token usage, and inference efficiency for total operational honesty.
-
-### 4. Parental Cognitive Telemetry Hub (`Laporan`)
-* **Pedagogical Triad Metrics** (styled in tabular monospaced format):
-  * **URR (Unprompted Retention Rate)**: Tracks unassisted recall across multiple learning days.
-  * **TCR (Response Time & Hesitation)**: Evaluates cognitive processing speed without pressure.
-  * **RBS (Resistance-to-Bait Score)**: Measures logical conviction when gently challenged by Kiko's counter-questions.
-* **Cognitive Trajectory**: Visual indicators showing phonemic fluency and early numeracy milestones.
+Indonesian parents with toddlers (ages 4–6) face a painful educational dilemma:
+1. **Passive Screen Addiction**: Traditional educational apps and video streaming (e.g. YouTube Kids) lead to passive consumption, attention span decay, and zero verbal articulation practice.
+2. **Expensive Human Tutors**: Private Calistung (Membaca, Menulis, Berhitung) tutors cost between IDR 500,000 to IDR 2,500,000 per month, remaining out of reach for millions of middle-to-lower-income households.
+3. **Data Privacy Fears**: Parents are rightly cautious of generative AI apps retaining recordings or personal data of their young children.
 
 ---
 
-## Design System: "Calm Scaffolding"
+## 2. Solution & Core Features
 
-Rooted in Scandinavian wooden toy craft, pressed card stock, and natural earth pigments:
+Primer bridges this gap with an active voice-first learning experience powered by **Kiko**, a playful companion mascot:
 
-| Token | Hex | Role |
-|---|---|---|
-| **Calm Primary** | `#9D3E1A` | Terracotta Clay – focal interactive anchors, primary affirmative triggers |
-| **Calm Secondary** | `#3F674D` | Sage Earth – pedagogical progress, calm mastery indicators |
-| **Calm Tertiary** | `#7B5500` | Honey Ochre – supportive scaffolding, timer chips, highlight accents |
-| **Surface Cream** | `#FFF8F6` | Warm natural linen canvas, replacing sterile cold whites |
-| **Surface Container** | `#FAEBE6` | Pressed card background for tactile depth |
-| **Card Border Tactile** | `#E2D7CC` | Subtle debossed outline imitating natural beechwood and cardboard |
-
-### Typography
-* **Nunito Sans**: Non-intimidating, rounded geometric forms for child-facing voice prompts and titles.
-* **Plus Jakarta Sans**: Crisp, high-legibility sans-serif for parent telemetry, metrics, and data audit logs.
+- **15-Minute Socratic Learning Loops**: Rather than spoon-feeding answers or leaving children alone for hours, Kiko engages in structured 15-minute voice dialogues using 3-level step-down Socratic scaffolding (Nudge $\rightarrow$ Binary Choice $\rightarrow$ Guided Reveal).
+- **Phonics & Mental Math Curriculum**: 10 curated Indonesian challenges covering early phonemes (B, A, M, syllable completion, rhymes) and counting/story math.
+- **Zero-Storage Privacy Contract**: Volatile voice evaluation ensures no raw audio or toddler utterances are persisted to disk or databases.
+- **Tactile Card Fallback**: Seamless fallback tap cards designed for quiet play or noisy, low-SNR rooms.
+- **PIN-Gated Parent Hub & WhatsApp Digest**: Parents receive daily learning ROI (minutes learned, unassisted resolution rate) and an actionable dinner-table conversation prompt via WhatsApp.
 
 ---
 
-## Tech Stack
+## 3. Architecture & Tech Stack
 
-* **Language**: Kotlin 2.0+
-* **UI**: Jetpack Compose with Material 3 (M3)
-* **Local Persistence**: Android Room Database (`CalistungDatabase`)
-* **State Management**: `ViewModel` with Kotlin Coroutines `StateFlow` and Compose state hoisting
-* **Testing**: Robolectric local JVM testing for end-to-end critical user journeys
-* **Architecture**: Clean MVVM (Model-View-ViewModel) + Offline-first repository pattern
+```mermaid
+flowchart TD
+    subgraph Client["Next.js 16 PWA (Mobile Browser)"]
+        A["Mascot UI (Framer Motion)"]
+        B["Push-to-Talk (Web Speech API)"]
+        C["Tactile Card Fallback"]
+        D["Parent Gate Modal"]
+    end
 
----
+    subgraph Server["Google Cloud Run (Node 20 Standalone)"]
+        E["/api/evaluate Gateway"]
+        F["Deterministic Fast-Path Regex"]
+        G["/api/notify-parent"]
+    end
 
-## Project Structure
+    subgraph AI["Google AI Gateway"]
+        H["Gemini 1.5 Flash (Structured JSON)"]
+    end
 
-```
-├── app/
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/com/example/
-│   │   │   │   ├── MainActivity.kt               # Root Scaffold & 4-Tab Navigation
-│   │   │   │   ├── audio/                        # Audio processing & SNR detection
-│   │   │   │   ├── data/                         # Room entities, DAOs, & curriculum definitions
-│   │   │   │   ├── network/                      # Network & API client abstractions
-│   │   │   │   ├── ui/
-│   │   │   │   │   ├── screens/                  # Suara, Pilihan, Istirahat, Laporan
-│   │   │   │   │   └── theme/                    # Color, Type, and Theme design tokens
-│   │   │   │   └── viewmodel/                    # Socratic learning session ViewModel
-│   │   │   └── res/                              # Strings, local fonts, and vector drawables
-│   │   └── test/
-│   │       └── java/com/example/
-│   │           └── ExampleRobolectricTest.kt     # End-to-end Robolectric test suite
-├── metadata.json                                 # AI Studio platform configuration
-├── build.gradle.kts                              # Root Gradle script
-└── settings.gradle.kts                           # Module settings & dependency catalogs
+    subgraph Integrations["External Notifications"]
+        I["WhatsApp Gateway Webhook"]
+    end
+
+    B -->|Utterance Text| E
+    C -->|Tap Choice| E
+    E -->|Fast Match <1ms| F
+    E -->|Child Speech Classification| H
+    D -->|Session Summary| G
+    G -->|Personalized Digest| I
 ```
 
+- **Frontend**: Next.js 16 (App Router), Tailwind CSS, Framer Motion, `@types/canvas-confetti`, `lucide-react`.
+- **Backend & Gateway**: Next.js Route Handlers running on **Google Cloud Run** in a containerized Node 20 Alpine environment (`output: "standalone"`).
+- **AI Core**: `@google/genai` targeting `gemini-1.5-flash` with JSON schema enforcement, child phoneme tolerance, and a 2.5-second circuit breaker fallback.
+- **Privacy**: Volatile in-memory processing with zero long-term audio or transcript storage.
+
 ---
 
-## Running the Application
+## 4. Local Setup & Reproduction Steps
 
-### Build & Run
-Run the app using the standard Gradle assemble command or via Android Studio:
+### Prerequisites
+- Node.js 20+ and `npm`
+- Docker (for containerized deployment)
+- Google Cloud CLI (`gcloud`) configured (for Cloud Run deployment)
+
+### 1. Clone & Install Dependencies
 ```bash
-gradle assembleDebug
+git clone https://github.com/peteromallet/primer.git
+cd primer/web
+npm install
 ```
 
-### Run Unit & Robolectric Tests
-Execute the local JVM test suite (covering Socratic ladder progression, SNR fallback cards, session wind-down, and parent hub telemetry):
+### 2. Configure Environment Variables
+Create `.env.local` inside `web/`:
 ```bash
-gradle :app:testDebugUnitTest
+GEMINI_API_KEY=your_gemini_api_key_here
+WA_GATEWAY_URL=https://api.fonnte.com/send
+WA_GATEWAY_TOKEN=your_token_optional
 ```
 
----
+### 3. Run Development Server
+```bash
+cd web
+npm run dev
+```
+Open `http://localhost:3000` on your browser or mobile viewport emulator.
 
-## Privacy & Safety Principles
+### 4. Build Standalone Docker Image Locally
+From the root repository directory:
+```bash
+docker build -t primer-web .
+docker run -p 8080:8080 -e GEMINI_API_KEY=your_key primer-web
+```
+Access the application at `http://localhost:8080`.
 
-1. **COPPA & GDPR-K Aligned**: No third-party ad tracking, fingerprinting, or biometric identification.
-2. **Acoustic Rest**: Active session caps ensure young children do not engage in unbounded device usage.
-3. **Parental Consent**: Explicit disclosures regarding audio handling with one-tap zero-trace purging.
+### 5. Deploy to Google Cloud Run
+```bash
+gcloud run deploy primer-kiko \
+  --source . \
+  --platform managed \
+  --region asia-southeast2 \
+  --allow-unauthenticated \
+  --set-env-vars GEMINI_API_KEY=your_gemini_api_key_here
+```

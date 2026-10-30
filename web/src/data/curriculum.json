@@ -1,0 +1,142 @@
+[
+  {
+    "id": "phonics-1-sound-b",
+    "type": "phonics",
+    "target": "B",
+    "promptText": "Huruf apa yang ada di awal kata Bebek dan Bola?",
+    "expectedAnswers": ["b", "be", "bebek", "bola"],
+    "stepDownHints": [
+      "Coba dengarkan bunyi awalnya: Bbb... bebek!",
+      "Apakah bunyinya B atau D?",
+      "Tirukan Kiko yuk: B-B-B, huruf B!"
+    ],
+    "choices": ["B", "D", "P"],
+    "celebrationText": "Hebat sekali! Huruf B untuk Bebek dan Bola!"
+  },
+  {
+    "id": "phonics-2-sound-a",
+    "type": "phonics",
+    "target": "A",
+    "promptText": "Apel dan Ayam dimulai dengan huruf apa ya?",
+    "expectedAnswers": ["a", "aa", "apel", "ayam"],
+    "stepDownHints": [
+      "Buka mulutmu lebar-lebar: Aaa... apel!",
+      "Apakah huruf A atau huruf O?",
+      "Katakan bersama Kiko: Aaa... huruf A!"
+    ],
+    "choices": ["A", "O", "U"],
+    "celebrationText": "Pintar! Huruf A seperti mulut terbuka lebar!"
+  },
+  {
+    "id": "phonics-3-sound-m",
+    "type": "phonics",
+    "target": "M",
+    "promptText": "Saat lapar kita Makan dan Minum. Huruf awalnya apa?",
+    "expectedAnswers": ["m", "em", "makan", "minum"],
+    "stepDownHints": [
+      "Rapatkan bibirmu seperti bilang makanan enak: Mmm...",
+      "Apakah itu M atau N?",
+      "Bunyinya Mmm... itu huruf M!"
+    ],
+    "choices": ["M", "N", "W"],
+    "celebrationText": "Luar biasa! Mmm... M untuk Makan dan Minum!"
+  },
+  {
+    "id": "phonics-4-syllable-bapak",
+    "type": "phonics",
+    "target": "PAK",
+    "promptText": "Ayo lengkapi kata ini: BA - ...? Menjadi BAPAK!",
+    "expectedAnswers": ["pak", "pa", "bapak"],
+    "stepDownHints": [
+      "Setelah BA, bunyinya apa supaya jadi orang tua laki-laki kita?",
+      "Apakah BA-PAK atau BA-JU?",
+      "Katakan: P-A-K, PAK!"
+    ],
+    "choices": ["PAK", "JU", "LU"],
+    "celebrationText": "Keren! BA ditambah PAK menjadi BAPAK!"
+  },
+  {
+    "id": "phonics-5-rhyme-buku-kuku",
+    "type": "rhyme",
+    "target": "KUKU",
+    "promptText": "Kata apa yang bunyinya mirip dengan Buku? Apakah Kuku atau Topi?",
+    "expectedAnswers": ["kuku", "ku-ku"],
+    "stepDownHints": [
+      "Dengarkan ujung suaranya: Bu-ku... ku...",
+      "Apakah Ku-ku atau To-pi?",
+      "Ujungnya sama-sama 'KU': Bu-KU, Ku-KU!"
+    ],
+    "choices": ["KUKU", "TOPI", "BOLA"],
+    "celebrationText": "Tepat sekali! Buku berima dengan Kuku!"
+  },
+  {
+    "id": "math-1-count-3-apples",
+    "type": "counting",
+    "target": "3",
+    "promptText": "Ada berapa apel di keranjang? Satu, dua, ...?",
+    "expectedAnswers": ["3", "tiga", "three"],
+    "stepDownHints": [
+      "Ayo hitung jari: satu, dua, lalu...?",
+      "Apakah jumlahnya 3 atau 2?",
+      "Tiga apel merah manis! Coba sebutkan angka 3!"
+    ],
+    "choices": ["3", "2", "4"],
+    "celebrationText": "Bagus! Ada 3 buah apel merah!"
+  },
+  {
+    "id": "math-2-count-5-stars",
+    "type": "counting",
+    "target": "5",
+    "promptText": "Kiko melihat bintang bersinar di langit! Hitung yuk sampai jarimu penuh: ada berapa?",
+    "expectedAnswers": ["5", "lima", "five"],
+    "stepDownHints": [
+      "Satu tangan penuh memiliki berapa jari?",
+      "Apakah ada 5 atau 3 bintang?",
+      "Buka semua lima jarimu: ada 5 bintang!"
+    ],
+    "choices": ["5", "4", "6"],
+    "celebrationText": "Wah berkilau! Kamu berhasil menghitung 5 bintang!"
+  },
+  {
+    "id": "math-3-compare-2-vs-4",
+    "type": "counting",
+    "target": "4",
+    "promptText": "Di antara angka 2 dan 4, mana yang jumlahnya LEBIH BANYAK?",
+    "expectedAnswers": ["4", "empat", "four"],
+    "stepDownHints": [
+      "Bayangkan 2 permen dan 4 permen, mana yang lebih banyak?",
+      "Apakah 4 lebih besar dari 2?",
+      "Empat memiliki jumlah lebih banyak daripada dua!"
+    ],
+    "choices": ["4", "2"],
+    "celebrationText": "Benar! Angka 4 lebih banyak dari 2!"
+  },
+  {
+    "id": "math-4-story-addition-1-plus-1",
+    "type": "counting",
+    "target": "2",
+    "promptText": "Ada 1 kucing bermain. Lalu datang 1 teman kucing lagi. Sekarang ada berapa kucing?",
+    "expectedAnswers": ["2", "dua", "two"],
+    "stepDownHints": [
+      "Satu ditambah satu jadi berapa ya?",
+      "Apakah kucingnya jadi 2 atau 3?",
+      "Hitung bersama: 1... lalu 2 kucing!"
+    ],
+    "choices": ["2", "1", "3"],
+    "celebrationText": "Yey! 1 ditambah 1 sama dengan 2 kucing lucu!"
+  },
+  {
+    "id": "math-5-addition-2-plus-3",
+    "type": "counting",
+    "target": "5",
+    "promptText": "Jika kamu punya 2 kue, lalu diberi 3 kue lagi, berapa total semua kuemu?",
+    "expectedAnswers": ["5", "lima", "five"],
+    "stepDownHints": [
+      "Mulai dari 2, hitung maju 3 langkah: tiga, empat...?",
+      "Apakah jadinya 5 atau 4 kue?",
+      "Dua ditambah tiga menjadi 5 kue lezat!"
+    ],
+    "choices": ["5", "6", "4"],
+    "celebrationText": "Hore! 2 ditambah 3 sama dengan 5!"
+  }
+]
